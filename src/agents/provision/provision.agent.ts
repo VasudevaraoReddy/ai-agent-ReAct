@@ -28,6 +28,7 @@ export const ProvisionAgent = async (
       '{service_config_status}',
       service_config_status,
     ).replace('{formData}', formDataProvided);
+    console.log(formmatedPrompt)
     const messagesPayload = [
       new SystemMessage(formmatedPrompt),
       ...state.messages,
@@ -75,6 +76,7 @@ export const ProvisionAgent = async (
         active_agent: 'provision_agent',
         // clear formData based on deploy tool
         formData: isDeployToolCalled ? {} : formData,
+        service_config_status:formattedToolResponse.found
       },
     };
   } catch (error) {
