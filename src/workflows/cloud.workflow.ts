@@ -13,11 +13,14 @@ import { SupervisorAgent } from 'src/agents/supervisor/supervisor.agent';
 
 type extra_info={
   user_input:string,
-  formData:any,
   userId?:string,
   csp?:string,
-  service_config_status?:boolean,
   active_agent?:string
+
+  // provision agent
+  service_form_data:any,
+  service_config_available?:boolean,
+  service_config?:any,
 }
 export const CloudGraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -25,13 +28,15 @@ export const CloudGraphState = Annotation.Root({
     reducer: (x, y) => x.concat(y),
   }),
   extra_info: Annotation<extra_info>({
-    default: () => ({
-      user_input: '',
+      default: () => ({
+        user_input: '',
       formData:{},
       userId:'',
       csp:'',
       active_agent:'',
-      service_config_status:false
+      service_form_data:{},
+      service_config_available:false,
+      service_config:null
     }),
     reducer: (x, y) => ({
       ...x,

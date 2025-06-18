@@ -22,10 +22,11 @@ export class AppService {
       messages: [...formattedLangchainMessagesToBaseMessages, new HumanMessage(data?.user_input)],
       extra_info: {
         user_input: data?.user_input,
-        formData: data?.formData || {},
         userId: data?.userId,
         csp: data?.csp,
-        service_config_status:userConversation?.extra_info?.service_config_status
+        service_form_data:data?.formData || {}, 
+        service_config_available:userConversation?.extra_info?.service_config_available,
+        service_config:userConversation?.extra_info?.serviceConfig
       },
     };
     const response = await CloudWorkFlow.invoke(workflowPayload);

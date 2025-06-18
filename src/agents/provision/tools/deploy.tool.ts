@@ -8,93 +8,150 @@ import {
   getTerraformVariables,
 } from 'src/apis/azureDevopsService.api';
 import { RunnableConfig } from '@langchain/core/runnables';
+import getServiceConfigTool from './service-config.tool';
+import { ToolMessage } from '@langchain/core/messages';
 
 const deployTool = tool(
-  async (input: {},config?:RunnableConfig) => {
-    const payload = config?.configurable?.formData;
+  async (input: {service:string},config?:RunnableConfig) => {
+    // CRITICAL VALIDATION: Check if service config and required fields are available
+    const serviceConfigAvailable = config?.configurable?.service_config_available;
+    const serviceConfig = config?.configurable?.service_config;
+    console.log("In deploy tool", { serviceConfigAvailable });
+    
+    // If service configuration is not available, fetch it first
+    if (serviceConfigAvailable === 'False') {
+      try {
+        // Tool Invocation
+        const serviceToolResponse:any = await getServiceConfigTool.invoke(input, config);
+        let toolContent:any = {};
+        
+        if (serviceToolResponse instanceof ToolMessage){
+          toolContent = JSON.parse(serviceToolResponse?.content.toString());
+        }
+        // If service config wasn't found, return error
+        if (!toolContent?.found || !toolContent?.serviceConfig) {
+          return JSON.stringify({
+            response: `Service configuration for ${input.service} is not available. Cannot proceed with deployment.`,
+            status: false,
+            error_code: "SERVICE_CONFIG_NOT_FOUND"
+          });
+        }
+        return JSON.stringify({
+          response: `I've found the service configuration for ${input.service}. Please confirm the required configuration values before proceeding with deployment.`,
+          status: false,
+          serviceConfig: toolContent?.serviceConfig,
+          found: toolContent?.found
+        });
+      } catch (error) {
+        console.error("Error fetching service configuration:", error);
+        return JSON.stringify({
+          response: `Error fetching service configuration: Unable to proceed with deployment.`,
+          status: false,
+          error_code: "SERVICE_CONFIG_FETCH_ERROR"
+        });
+      }
+    }
+    
+    // Extract form data from configuration
+    const payload = config?.configurable?.service_form_data;
     const userId = config?.configurable?.userId;
-    console.log("In deploy tool",{payload,userId})
-    // Handle empty or missing payload
+    console.log("In deploy tool - processing payload:", {payload, userId});
+    
+    // Validate payload existence
     if (!payload || payload === 'No payload provided') {
       return JSON.stringify({
-        response: `Cannot deploy without configuration data. Please provide the required configuration values.`,
+        response: `Cannot deploy without configuration data. Required fields are missing. Please provide the required configuration values.`,
         status: false,
+        error_code: "MISSING_REQUIRED_FIELDS",
+        serviceConfig: serviceConfig,
       });
     }
 
-      const payloadObj =
-        typeof payload === 'string' ? JSON.parse(payload) : payload;
-        if (!payloadObj) {
-            return JSON.stringify({
-            response: `Invalid payload: missing 'template' or 'formData'.`,
-            status: false,
-        });
-      }
+    // Parse payload and validate structure
+    const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (!payloadObj) {
+      return JSON.stringify({
+        response: `Invalid payload format. Missing required configuration data.`,
+        status: false,
+        error_code: "INVALID_PAYLOAD"
+      });
+    }
 
     const { formData, template } = payloadObj;
 
+    // Validate form data - explicit check for empty object
     if (!formData || Object.keys(formData).length === 0) {
       return JSON.stringify({
-        response: `Cannot deploy without configuration data.`,
+        response: `No values provided. Required fields are missing. Please provide values for all required fields.`,
         status: false,
+        error_code: "EMPTY_FORM_DATA",
+        // Include service configuration to help the agent list the required fields
+        serviceConfig: config?.configurable?.serviceConfig
       });
     }
 
-    // try {
-    //   const deploymentId = uuidv4();
-    //   const tfVariables: any = await getTerraformVariables();
-    //   if (tfVariables?.length > 0) {
-    //     let modifiedData = Object.keys(formData).map((key) => ({
-    //       variableName: key,
-    //       newValue: formData[key],
-    //     }));
-    //     const newUpdatedFormValues = {};
-
-    //     modifiedData.forEach(({ variableName, newValue }) => {
-    //       const tfVar = tfVariables.find((obj) =>
-    //         Object.prototype.hasOwnProperty.call(obj, variableName),
-    //       );
-    //       if (tfVar) {
-    //         newUpdatedFormValues[tfVar[variableName]] = newValue;
-    //       } else {
-    //         newUpdatedFormValues[variableName] = newValue;
-    //       }
-    //     });
-
-    //     const response = await updateJsonInDevOps(
-    //       template,
-    //       newUpdatedFormValues,
-    //       userId,
-    //       'AGENT',
-    //       'Destroy',
-    //     );
-
-    //     return JSON.stringify({
-    //       response: `Platform has initiated infrastructure provisioning for ${template}`,
-    //       status: true,
-    //       configuration: {
-    //         originalData: formData,
-    //         modifiedData,
-    //       },
-    //       deploymentId,
-    //     });
-    //   }
-    // } catch (error: any) {
-    //   return JSON.stringify({
-    //     response: `Failed to deploy ${template}: ${error.message}`,
-    //     status: false,
-    //   });
-    // }
-    return JSON.stringify({
-      response: `Platform has initiated infrastructure provisioning for ${template}`,
-      status: true,
-    });
+    // Successful deployment (currently mocked)
+    // In a real implementation, you would uncomment the DevOps API calls
+    try {
+      const deploymentId = uuidv4();
+      
+      // Uncomment for actual implementation
+      // const tfVariables: any = await getTerraformVariables();
+      // if (tfVariables?.length > 0) {
+      //   let modifiedData = Object.keys(formData).map((key) => ({
+      //     variableName: key,
+      //     newValue: formData[key],
+      //   }));
+      //   const newUpdatedFormValues = {};
+      //
+      //   modifiedData.forEach(({ variableName, newValue }) => {
+      //     const tfVar = tfVariables.find((obj) =>
+      //       Object.prototype.hasOwnProperty.call(obj, variableName),
+      //     );
+      //     if (tfVar) {
+      //       newUpdatedFormValues[tfVar[variableName]] = newValue;
+      //     } else {
+      //       newUpdatedFormValues[variableName] = newValue;
+      //     }
+      //   });
+      //
+      //   const response = await updateJsonInDevOps(
+      //     template,
+      //     newUpdatedFormValues,
+      //     userId,
+      //     'AGENT',
+      //     'Destroy',
+      //   );
+      // }
+      
+      return JSON.stringify({
+        response: `Platform has initiated infrastructure provisioning for ${template}`,
+        status: true,
+        deploymentId: deploymentId,
+        metadata: {
+          service: input.service,
+          template: template
+        }
+      });
+    } catch (error: any) {
+      console.error("Deployment error:", error);
+      return JSON.stringify({
+        response: `Failed to deploy ${template}: ${error.message}`,
+        status: false,
+        error_code: "DEPLOYMENT_ERROR"
+      });
+    }
   },
   {
     name: 'deploy_service',
-    description:
-      'Use this tool to deploy a service once the user confirms the deployment and asked the service configuration details',
+    description: 'Call this tool when you have the service configuration and the required fields are provided by the user'+
+    'to initiate the deployment of the service',
     schema: z.object({
+      service: z
+      .string()
+      .describe(
+        'The service name to provision (e.g. "EC2", "VM", "Compute Engine", "Compute")',
+      ),
     }),
   },
 );
