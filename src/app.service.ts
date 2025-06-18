@@ -2,7 +2,7 @@ import {  HumanMessage } from '@langchain/core/messages';
 import { Injectable } from '@nestjs/common';
 import { CloudWorkFlow, CloudGraphState } from 'src/workflows/cloud.workflow';
 import { formatLangchainMessages, formatLangchainMessagesToBaseMessage } from 'src/utils/formatLangchainMessages';
-import { getConversationHistory, saveConversationHistory } from './utils/conversationStorage';
+import { getConversationHistory, saveConversationHistory, listAllConversations } from './utils/conversationStorage';
 
 @Injectable()
 export class AppService {
@@ -61,4 +61,8 @@ export class AppService {
       extra_info: userConversation?.extra_info
     };
   } 
+
+  async listAllConversations() {
+    return listAllConversations();
+  }
 }

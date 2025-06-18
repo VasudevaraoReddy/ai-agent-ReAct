@@ -26,4 +26,9 @@ export class AppController {
   getConversation(@Param('userId') userId: string, @Param('conversationId') conversationId: string) {
     return this.appService.getConversation(userId, conversationId);
   }
+
+  @Get('conversations')
+  listAllConversations() {
+    return this.appService.listAllConversations();
+  }
 }

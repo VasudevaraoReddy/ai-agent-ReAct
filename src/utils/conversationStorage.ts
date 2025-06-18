@@ -71,3 +71,31 @@ export const saveConversationHistory = (
     console.error('Error saving conversation history:', error);
   }
 }; 
+
+export const listAllConversations = (): { userId: string; conversationId: string }[] => {
+  const allConversations: { userId: string; conversationId: string }[] = [];
+
+  if (!fs.existsSync(CONVERSATIONS_DIR)) {
+    return allConversations;
+  }
+
+  const files = fs.readdirSync(CONVERSATIONS_DIR);
+
+  files.forEach((file) => {
+    const userId = path.basename(file, '.json');
+    const filePath = path.join(CONVERSATIONS_DIR, file);
+
+    try {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      const userConversations: UserConversations = JSON.parse(data || '{}');
+
+      for (const conversationId of Object.keys(userConversations)) {
+        allConversations.push({ userId, conversationId });
+      }
+    } catch (error) {
+      console.error(`Error reading conversations from file ${file}:`, error);
+    }
+  });
+
+  return allConversations;
+};
