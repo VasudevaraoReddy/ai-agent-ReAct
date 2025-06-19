@@ -16,28 +16,22 @@ export const ProvisionAgent = async (
   state: typeof CloudGraphState.State,
 ): Promise<Partial<typeof CloudGraphState.State>> => {
   try {
-    // Determine current state for proper tool selection
-    const service_config_available = state.extra_info.service_config_available
-      ? 'True'
-      : 'False';
-    console.log('service_config_available', service_config_available);
-
     const formData = state.extra_info.service_form_data;
     const userId = state.extra_info.userId;
-    const csp = state.extra_info.csp;
+    const csp = state.extra_info.csp ?? 'azure';
 
     // Determine if form data is provided
     const formDataProvided =
       formData && Object.keys(formData).length > 0 ? 'True' : 'False';
 
     // Format prompt with current state
-    const formmatedPrompt = PROVISION_AGENT_PROMPT.replace(
-      '{service_config_available}',
-      service_config_available,
-    ).replace('{formData}', formDataProvided);
+    const formattedPrompt = PROVISION_AGENT_PROMPT.replace(
+      /\{formData\}/g,
+      formDataProvided,
+    ).replace(/\{cloudProvider\}/g, csp.toLocaleUpperCase());
 
     const messagesPayload = [
-      new SystemMessage(formmatedPrompt),
+      new SystemMessage(formattedPrompt),
       ...state.messages,
     ];
 
@@ -45,7 +39,7 @@ export const ProvisionAgent = async (
     const agent = createReactAgent({
       llm: OllamaLLM,
       tools: tools,
-      prompt: PROVISION_AGENT_PROMPT,
+      prompt: formattedPrompt,
     });
 
     const response = await agent.invoke(
@@ -56,9 +50,9 @@ export const ProvisionAgent = async (
         configurable: {
           userId: userId,
           csp: csp,
-          service_form_data:formData,
-          service_config_available:state.extra_info.service_config_available,
-          service_config:state.extra_info.service_config
+          service_form_data: formData,
+          service_config_available: state.extra_info.service_config_available,
+          service_config: state.extra_info.service_config,
         },
         recursionLimit: 15,
       },
@@ -88,6 +82,8 @@ export const ProvisionAgent = async (
         serviceConfig: toolResults.serviceConfig,
         found: toolResults.found,
         isDeployed: isDeployToolCalled && deploySuccess,
+        devOpsResponse: toolResults?.devOpsResponse,
+        serviceDeploymentId: toolResults?.serviceDeploymentId,
       },
     });
 
@@ -104,9 +100,7 @@ export const ProvisionAgent = async (
         service_config_available: deploySuccess
           ? false
           : isServiceConfigFetched,
-        service_config: deploySuccess
-          ? null
-          : toolResults.serviceConfig,
+        service_config: deploySuccess ? null : toolResults.serviceConfig,
       },
     };
   } catch (error) {
@@ -129,6 +123,8 @@ const processToolResponses = (messages: ToolMessage[]) => {
     serviceConfigFetched: false,
     deployToolCalled: false,
     deploySuccess: false,
+    devOpsResponse: null,
+    serviceDeploymentId: null,
   };
 
   for (const message of messages) {
@@ -149,6 +145,8 @@ const processToolResponses = (messages: ToolMessage[]) => {
         results.serviceConfig = content?.serviceConfig ?? null;
         results.found = content?.found ?? false;
         results.serviceConfigFetched = content?.serviceConfig ?? false;
+        results.devOpsResponse = content?.devOpsResponse;
+        results.serviceDeploymentId = content?.serviceDeploymentId;
       }
     } catch (error) {
       console.error('Error processing tool message:', error);

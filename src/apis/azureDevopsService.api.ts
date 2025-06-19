@@ -74,6 +74,7 @@ const updateJsonInDevOps = async (
   createdBy: string,
   stageToSkip: string
 ): Promise<any> => {
+  console.log(template, formValues)
   try {
     const azureReposInJson = await getAzureReposInJson();
     if (azureReposInJson?.status === 200) {

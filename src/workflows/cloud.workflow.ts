@@ -16,6 +16,8 @@ type extra_info={
   userId?:string,
   csp?:string,
   active_agent?:string
+  // user selected agent
+  user_selected_active_agent?:string;
 
   // provision agent
   service_form_data:any,
@@ -36,7 +38,8 @@ export const CloudGraphState = Annotation.Root({
       active_agent:'',
       service_form_data:{},
       service_config_available:false,
-      service_config:null
+      service_config:null,
+      user_selected_active_agent:""
     }),
     reducer: (x, y) => ({
       ...x,

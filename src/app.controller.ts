@@ -5,20 +5,22 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Post()  
+  @Post("process-query")  
   runWorkflow(@Body() body:   {
     user_input: string,
     conversation_id: string,
     formData:any,
     userId:string,
-    csp:string
+    csp:string,
+    userSelectedAgent:string
   }) {
     return this.appService.runWorkflow({
       user_input: body.user_input,
       conversation_id: body.conversation_id,
       formData: body.formData,
       userId: body.userId,
-      csp: body.csp
+      csp: body.csp,
+      userSelectedAgent:body.userSelectedAgent
     });
   }
 

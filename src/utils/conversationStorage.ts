@@ -17,25 +17,28 @@ interface UserConversations {
   [conversationId: string]: Conversation;
 }
 
-export const getConversationHistory = (userId: string, conversationId: string): Conversation => {
+export const getConversationHistory = (
+  userId: string,
+  conversationId: string,
+): Conversation => {
   const userFile = path.join(CONVERSATIONS_DIR, `${userId}.json`);
 
   if (!fs.existsSync(userFile)) {
     return {
       messages: [],
-      extra_info: {}
+      extra_info: {},
     };
   }
 
   try {
     const data = fs.readFileSync(userFile, 'utf-8');
-    const userConversations: UserConversations = JSON.parse(data||'{}');
+    const userConversations: UserConversations = JSON.parse(data || '{}');
     return userConversations[conversationId];
   } catch (error) {
     console.error('Error reading conversation history:', error);
     return {
       messages: [],
-      extra_info: {}
+      extra_info: {},
     };
   }
 };
@@ -44,7 +47,7 @@ export const saveConversationHistory = (
   userId: string,
   conversationId: string,
   messages: FormattedLangchainMessage[],
-  extra_info: any
+  extra_info: any,
 ): void => {
   const userFile = path.join(CONVERSATIONS_DIR, `${userId}.json`);
   let userConversations: UserConversations = {};
@@ -53,7 +56,7 @@ export const saveConversationHistory = (
   if (fs.existsSync(userFile)) {
     try {
       const data = fs.readFileSync(userFile, 'utf-8');
-      userConversations = JSON.parse(data||'{}');
+      userConversations = JSON.parse(data || '{}');
     } catch (error) {
       console.error('Error reading existing conversations:', error);
     }
@@ -62,7 +65,7 @@ export const saveConversationHistory = (
   // Update or create the conversation
   userConversations[conversationId] = {
     messages,
-    extra_info
+    extra_info,
   };
 
   try {
@@ -70,13 +73,21 @@ export const saveConversationHistory = (
   } catch (error) {
     console.error('Error saving conversation history:', error);
   }
-}; 
+};
 
-export const listAllConversations = (): { userId: string; conversationId: string }[] => {
-  const allConversations: { userId: string; conversationId: string }[] = [];
+export const listAllConversations = (): {
+  userId: string;
+  conversationId: string;
+  csp: string | null;
+}[] => {
+  const result: {
+    userId: string;
+    conversationId: string;
+    csp: string | null;
+  }[] = [];
 
   if (!fs.existsSync(CONVERSATIONS_DIR)) {
-    return allConversations;
+    return result;
   }
 
   const files = fs.readdirSync(CONVERSATIONS_DIR);
@@ -90,12 +101,19 @@ export const listAllConversations = (): { userId: string; conversationId: string
       const userConversations: UserConversations = JSON.parse(data || '{}');
 
       for (const conversationId of Object.keys(userConversations)) {
-        allConversations.push({ userId, conversationId });
+        const conversation = userConversations[conversationId];
+        const csp = conversation?.extra_info?.csp ?? null;
+
+        result.push({
+          userId,
+          conversationId,
+          csp,
+        });
       }
     } catch (error) {
-      console.error(`Error reading conversations from file ${file}:`, error);
+      console.error(`Error reading or parsing ${file}:`, error);
     }
   });
 
-  return allConversations;
+  return result;
 };

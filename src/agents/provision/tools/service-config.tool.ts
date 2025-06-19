@@ -109,12 +109,11 @@
 
 // export default serviceConfigTool;
 
-
-
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import axios from 'axios';
 import { RunnableConfig } from '@langchain/core/runnables';
+import { v4 as uuidv4 } from 'uuid';
 
 const serviceConfigTool = tool(
   async (input: { service: string }, config?: RunnableConfig) => {
@@ -127,38 +126,55 @@ const serviceConfigTool = tool(
         return JSON.stringify({ serviceConfig: null, found: false });
       }
 
-      const allServicesDataResponse = await axios.get('http://localhost:3001/services');
+      const allServicesDataResponse = await axios.get(
+        'http://10.95.108.11:4000/infra-provision-service/allInfraServices',
+      );
 
-      const allServicesData: any[] = allServicesDataResponse.status === 200
-        ? allServicesDataResponse.data
-        : [];
+      const allServicesData: any[] =
+        allServicesDataResponse.status === 200
+          ? allServicesDataResponse.data
+          : [];
 
       const filteredServices = allServicesData.filter((svc: any) => {
-        const matchesCSP = csp && svc?.cloud?.toLowerCase() === csp.toLowerCase();
-        const matchesName = svc?.name?.toLowerCase().includes(service.toLowerCase());
-        return matchesCSP && matchesName;
+        const cloudMatch = svc?.cloudType?.toLowerCase() === csp.toLowerCase();
+        const nameMatch = svc?.title
+          ?.toLowerCase()
+          .includes(service?.toLowerCase());
+        return cloudMatch && nameMatch;
       });
 
       if (filteredServices.length > 0) {
-        const enrichedServices = filteredServices.map((svc) => ({
-          ...svc,
-          requiredFields: svc?.requiredFields || [],
-        }));
+        console.log('Found');
+        const enrichedServices = filteredServices.map((svc) => {
+          return {
+            ...svc,
+            requiredFields: svc?.requiredFields || [],
+            serviceDeploymentId: uuidv4(),
+          };
+        });
 
-        return JSON.stringify(
-          {
-            serviceConfig: enrichedServices,
-            found: enrichedServices.some(svc => svc.requiredFields.length > 0),
-          },
-          null,
-          2
-        );
+        return JSON.stringify({
+          response: `I've found the service configuration for ${input.service}. Please confirm the required configuration values before proceeding with deployment.`,
+          serviceConfig: enrichedServices,
+          found: enrichedServices.some((svc) => svc.requiredFields.length > 0),
+          serviceName: service,
+        });
       } else {
-        return JSON.stringify({ serviceConfig: null, found: false }, null, 2);
+        console.log('Not Found');
+        return JSON.stringify({
+          response: `Service configuration for ${input.service} is not available. we will add it in future.`,
+          serviceConfig: null,
+          found: false,
+          serviceName: service,
+        });
       }
     } catch (error) {
       console.error('Error processing service config request:', error);
-      return JSON.stringify({ serviceConfig: null, found: false }, null, 2);
+      return JSON.stringify({
+        response: '`Error fetching service configuration:',
+        serviceConfig: null,
+        found: false,
+      });
     }
   },
   {
@@ -169,9 +185,11 @@ const serviceConfigTool = tool(
     schema: z.object({
       service: z
         .string()
-        .describe('The service name to provision (e.g. "EC2", "VM", "Compute Engine", "Compute")'),
+        .describe(
+          'The service name to provision (e.g. "EC2", "VM", "Compute Engine", "Compute")',
+        ),
     }),
-  }
+  },
 );
 
 export default serviceConfigTool;

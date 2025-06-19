@@ -16,6 +16,7 @@ export const SupervisorAgent = async (
   state: typeof CloudGraphState.State,
 ): Promise<any> => {
   try {
+    if(state.extra_info.user_selected_active_agent===""){
     const tools = [
       transferToRecommendationsAgent,
       transferToProvisionAgent,
@@ -25,10 +26,12 @@ export const SupervisorAgent = async (
       new SystemMessage(SUPERVISOR_SYSTEM_PROMPT),
       ...state.messages,
     ];
+    const lastPerformedAgent=state.extra_info.active_agent as string
+    const formattedPrompt=SUPERVISOR_SYSTEM_PROMPT.replace("{previous_active_agent}",lastPerformedAgent)
     const agent = createReactAgent({
       llm: OllamaLLM,
       tools,
-      prompt: SUPERVISOR_SYSTEM_PROMPT,
+      prompt: formattedPrompt,
     });
     const response = await agent.invoke({
       messages: getChatHistoryFromMessages(messagesPayload),
@@ -42,6 +45,11 @@ export const SupervisorAgent = async (
     return new Command({
       goto: 'general_agent',
     });
+  }else{
+    return new Command({
+      goto:state.extra_info.user_selected_active_agent
+    })
+  }
   } catch (error) {
     console.log(error, 'error');
     return {
