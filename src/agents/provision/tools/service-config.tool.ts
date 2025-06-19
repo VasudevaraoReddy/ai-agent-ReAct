@@ -154,7 +154,7 @@ const serviceConfigTool = tool(
         });
 
         return JSON.stringify({
-          response: `I've found the service configuration for ${input.service}. Please confirm the required configuration values before proceeding with deployment.`,
+          response: `I've found the service configuration for ${input.service}. Please fill the details and click Deploy Button`,
           serviceConfig: enrichedServices,
           found: enrichedServices.some((svc) => svc.requiredFields.length > 0),
           serviceName: service,

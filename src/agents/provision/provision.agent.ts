@@ -129,6 +129,8 @@ const processToolResponses = (messages: ToolMessage[]) => {
 
   for (const message of messages) {
     try {
+
+      console.log(message?.content)
       const content = JSON.parse((message?.content as string) || '{}');
 
       // Process service configuration tool response
