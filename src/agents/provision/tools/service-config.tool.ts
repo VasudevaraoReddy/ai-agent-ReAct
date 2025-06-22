@@ -171,9 +171,10 @@ const serviceConfigTool = tool(
     } catch (error) {
       console.error('Error processing service config request:', error);
       return JSON.stringify({
-        response: '`Error fetching service configuration:',
+        response: 'Something went wrong. Please try again later.',
         serviceConfig: null,
         found: false,
+        serviceName: service,
       });
     }
   },

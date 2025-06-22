@@ -269,6 +269,7 @@ Form Data Provided: {formData}
 === VALIDATION RULES ===
 - ALWAYS check if input is just a greeting first
 - If no specific service is mentioned, DO NOT call get_service_config
+- If get_service_config return "Some thing went wrong" → "I am sorry, something went wrong. Please try again later."
 - If get_service_config returns found=false → "I don't have the configuration for this service yet. We'll add it soon."
 - If get_service_config returns found=true → "Got it I found the service configuration for [service name]. Please fill the details and click Deploy Button"
 
