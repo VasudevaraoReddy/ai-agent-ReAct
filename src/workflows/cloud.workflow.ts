@@ -10,6 +10,7 @@ import { ProvisionAgent } from 'src/agents/provision/provision.agent';
 import { RecommendationAgent } from 'src/agents/recommendations/recommendations.agent';
 import { GeneralAgent } from 'src/agents/general/general.agent';
 import { SupervisorAgent } from 'src/agents/supervisor/supervisor.agent';
+import { TerraformGeneratorAgent } from 'src/agents/terraform-generator/terraform-generator.agent';
 
 type extra_info={
   user_input:string,
@@ -51,13 +52,15 @@ export const CloudGraphState = Annotation.Root({
 
 export const CloudWorkFlow=new StateGraph(CloudGraphState)
 .addNode("supervisor",SupervisorAgent,{
-  ends:["provision_agent","recommendation_agent","general_agent"]
+  ends:["provision_agent","recommendation_agent","general_agent","terraform_generator_agent"]
 })
 .addNode('provision_agent',ProvisionAgent)
 .addNode('recommendation_agent',RecommendationAgent)
 .addNode('general_agent',GeneralAgent)
+.addNode('terraform_generator_agent',TerraformGeneratorAgent)
 .addEdge('__start__','supervisor')
 .addEdge('provision_agent','__end__')
 .addEdge('recommendation_agent','__end__')
 .addEdge('general_agent','__end__')
+.addEdge('terraform_generator_agent','__end__')
 .compile()

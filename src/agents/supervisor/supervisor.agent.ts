@@ -3,6 +3,7 @@ import { CloudGraphState } from 'src/workflows/cloud.workflow';
 import transferToProvisionAgent from './tools/transfer_to_provision_agent.tool';
 import transferToGeneralAgent from './tools/transfer_to_general_agent.tool';
 import transferToRecommendationsAgent from './tools/transfer_to_recommendations_agent.tool';
+import transferToTerraformGeneratorAgent from './tools/transfer_to_terraform_generator.tool';
 import { AIMessage, SystemMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import {
@@ -21,6 +22,7 @@ export const SupervisorAgent = async (
       transferToRecommendationsAgent,
       transferToProvisionAgent,
       transferToGeneralAgent,
+      transferToTerraformGeneratorAgent,
     ];
     const messagesPayload = [
       new SystemMessage(SUPERVISOR_SYSTEM_PROMPT),
@@ -70,7 +72,9 @@ const handOffToAgent = async (
       ? 'recommendation_agent'
       : toolAction === 'transfer_to_provision_agent'
         ? 'provision_agent'
-        : 'general_agent';
+        : toolAction === 'transfer_to_terraform_generator_agent'
+          ? 'terraform_generator_agent'
+          : 'general_agent';
   return new Command({
     goto: goToAgent,
   });

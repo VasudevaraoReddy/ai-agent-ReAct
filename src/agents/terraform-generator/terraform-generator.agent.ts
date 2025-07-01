@@ -1,0 +1,137 @@
+import {
+  AIMessage,
+  SystemMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
+import OllamaLLM from 'src/utils/ollama.llm';
+import { CloudGraphState } from 'src/workflows/cloud.workflow';
+import { TERRAFORM_GENERATOR_PROMPT } from './prompts.constants';
+import { getChatHistoryFromMessages } from 'src/utils/getPromtFromMessages';
+import generateTerraformTool from './tools/generate-terraform.tool';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { z } from 'zod';
+
+const terraformResponse = z.object({
+  response: z.string().optional(),
+  terraform_files: z.object({
+    main_tf: z.string(),
+    variables_tf: z.string(),
+    outputs_tf: z.string(),
+    terraform_tfvars_json: z.string(),
+  }).optional(),
+});
+
+interface TerraformFiles {
+  "main.tf": string;
+  "variables.tf": string;
+  "outputs.tf": string;
+  "terraform.tfvars.json": string;
+}
+
+export const TerraformGeneratorAgent = async (
+  state: typeof CloudGraphState.State,
+): Promise<Partial<typeof CloudGraphState.State>> => {
+  try {
+    const csp = state.extra_info.csp ?? 'azure';
+    
+    // Format prompt with current state
+    const formattedPrompt = TERRAFORM_GENERATOR_PROMPT.replace(
+      /\{cloudProvider\}/g, 
+      csp.toLocaleUpperCase()
+    );
+
+    const messagesPayload = [
+      new SystemMessage(formattedPrompt),
+      ...state.messages,
+    ];
+
+    const tools = [generateTerraformTool];
+    const agent = createReactAgent({
+      llm: OllamaLLM,
+      tools: tools,
+      prompt: formattedPrompt,
+      responseFormat: terraformResponse,
+    });
+
+    const response = await agent.invoke(
+      {
+        messages: getChatHistoryFromMessages(messagesPayload),
+      },
+      {
+        configurable: {
+          csp: csp,
+        },
+        recursionLimit: 15,
+      }
+    );
+
+    // Extract response content
+    const responseMessage = 
+      response?.structuredResponse?.response ?? 
+      (response?.messages[response?.messages.length - 1]?.content as string);
+
+    // Collect all tool messages
+    const tools_response: ToolMessage[] = [];
+    for (const message of response?.messages) {
+      if (message.getType() === 'tool') {
+        tools_response.push(message as ToolMessage);
+      }
+    }
+
+    // Process tool responses to extract terraform files
+    const terraformFiles = processToolResponses(tools_response);
+
+    // Create AI message with appropriate details
+    const aiMessage = new AIMessage(responseMessage, {
+      agent: 'terraform_generator_agent',
+      details: {
+        terraform_files: terraformFiles
+      },
+    });
+
+    // Return updated state
+    return {
+      messages: [aiMessage],
+      extra_info: {
+        ...state.extra_info,
+        active_agent: 'terraform_generator_agent',
+      },
+    };
+  } catch (error) {
+    console.error('Error in TerraformGeneratorAgent:', error);
+    return {
+      messages: [
+        new AIMessage(
+          'I encountered an error while generating Terraform code. Please try again.',
+        ),
+      ],
+    };
+  }
+};
+
+// Process tool responses to extract terraform files
+const processToolResponses = (messages: ToolMessage[]): TerraformFiles | null => {
+  let terraformFiles: TerraformFiles | null = null;
+
+  for (const message of messages) {
+    try {
+      if (message.name === 'generate_terraform') {
+        const content = JSON.parse(message.content as string);
+        
+        // Extract terraform files from the tool response
+        if (content.main_tf && content.variables_tf && content.outputs_tf && content.terraform_tfvars_json) {
+          terraformFiles = {
+            "main.tf": content.main_tf,
+            "variables.tf": content.variables_tf,
+            "outputs.tf": content.outputs_tf,
+            "terraform.tfvars.json": content.terraform_tfvars_json
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error processing tool message:', error);
+    }
+  }
+
+  return terraformFiles;
+}; 
