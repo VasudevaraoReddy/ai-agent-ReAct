@@ -13,19 +13,21 @@ import { z } from 'zod';
 
 const terraformResponse = z.object({
   response: z.string().optional(),
-  terraform_files: z.object({
-    main_tf: z.string(),
-    variables_tf: z.string(),
-    outputs_tf: z.string(),
-    terraform_tfvars_json: z.string(),
-  }).optional(),
+  terraform_files: z
+    .object({
+      main_tf: z.string(),
+      variables_tf: z.string(),
+      outputs_tf: z.string(),
+      terraform_tfvars_json: z.string(),
+    })
+    .optional(),
 });
 
 interface TerraformFiles {
-  "main.tf": string;
-  "variables.tf": string;
-  "outputs.tf": string;
-  "terraform.tfvars.json": string;
+  'main.tf': string;
+  'variables.tf': string;
+  'outputs.tf': string;
+  'terraform.tfvars.json': string;
 }
 
 export const TerraformGeneratorAgent = async (
@@ -33,11 +35,12 @@ export const TerraformGeneratorAgent = async (
 ): Promise<Partial<typeof CloudGraphState.State>> => {
   try {
     const csp = state.extra_info.csp ?? 'azure';
-    
+    const userid = state.extra_info.userId;
+
     // Format prompt with current state
     const formattedPrompt = TERRAFORM_GENERATOR_PROMPT.replace(
-      /\{cloudProvider\}/g, 
-      csp.toLocaleUpperCase()
+      /\{cloudProvider\}/g,
+      csp.toLocaleUpperCase(),
     );
 
     const messagesPayload = [
@@ -53,6 +56,7 @@ export const TerraformGeneratorAgent = async (
       responseFormat: terraformResponse,
     });
 
+    const agentStart = Date.now();
     const response = await agent.invoke(
       {
         messages: getChatHistoryFromMessages(messagesPayload),
@@ -60,15 +64,14 @@ export const TerraformGeneratorAgent = async (
       {
         configurable: {
           csp: csp,
+          userid: userid,
+          userInput: state.extra_info.user_input,
         },
         recursionLimit: 15,
-      }
+      },
     );
-
-    // Extract response content
-    const responseMessage = 
-      response?.structuredResponse?.response ?? 
-      (response?.messages[response?.messages.length - 1]?.content as string);
+    const agentEnd = Date.now();
+    console.log(`⏱️ Agent total time: ${agentEnd - agentStart}ms`);
 
     // Collect all tool messages
     const tools_response: ToolMessage[] = [];
@@ -81,11 +84,16 @@ export const TerraformGeneratorAgent = async (
     // Process tool responses to extract terraform files
     const terraformFiles = processToolResponses(tools_response);
 
+    // Extract response content
+    const responseMessage = terraformFiles
+      ? 'Terraform code has been successfully generated and will be available in 72 hours.'
+      : 'Terraform code generation failed. Please try again.';
+
     // Create AI message with appropriate details
     const aiMessage = new AIMessage(responseMessage, {
       agent: 'terraform_generator_agent',
       details: {
-        terraform_files: terraformFiles
+        terraform_files: terraformFiles,
       },
     });
 
@@ -110,21 +118,28 @@ export const TerraformGeneratorAgent = async (
 };
 
 // Process tool responses to extract terraform files
-const processToolResponses = (messages: ToolMessage[]): TerraformFiles | null => {
+const processToolResponses = (
+  messages: ToolMessage[],
+): TerraformFiles | null => {
   let terraformFiles: TerraformFiles | null = null;
 
   for (const message of messages) {
     try {
       if (message.name === 'generate_terraform') {
         const content = JSON.parse(message.content as string);
-        
+
         // Extract terraform files from the tool response
-        if (content.main_tf && content.variables_tf && content.outputs_tf && content.terraform_tfvars_json) {
+        if (
+          content.main_tf &&
+          content.variables_tf &&
+          content.outputs_tf &&
+          content.terraform_tfvars_json
+        ) {
           terraformFiles = {
-            "main.tf": content.main_tf,
-            "variables.tf": content.variables_tf,
-            "outputs.tf": content.outputs_tf,
-            "terraform.tfvars.json": content.terraform_tfvars_json
+            'main.tf': content.main_tf,
+            'variables.tf': content.variables_tf,
+            'outputs.tf': content.outputs_tf,
+            'terraform.tfvars.json': content.terraform_tfvars_json,
           };
         }
       }
@@ -134,4 +149,4 @@ const processToolResponses = (messages: ToolMessage[]): TerraformFiles | null =>
   }
 
   return terraformFiles;
-}; 
+};
