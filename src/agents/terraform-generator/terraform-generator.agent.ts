@@ -126,21 +126,26 @@ const processToolResponses = (
   for (const message of messages) {
     try {
       if (message.name === 'generate_terraform') {
-        const content = JSON.parse(message.content as string);
+        try {
+          const content = JSON.parse(message.content as string);
 
-        // Extract terraform files from the tool response
-        if (
-          content.main_tf &&
-          content.variables_tf &&
-          content.outputs_tf &&
-          content.terraform_tfvars_json
-        ) {
-          terraformFiles = {
-            'main.tf': content.main_tf,
-            'variables.tf': content.variables_tf,
-            'outputs.tf': content.outputs_tf,
-            'terraform.tfvars.json': content.terraform_tfvars_json,
-          };
+          // Extract terraform files from the tool response
+          if (
+            content.main_tf &&
+            content.variables_tf &&
+            content.outputs_tf &&
+            content.terraform_tfvars_json
+          ) {
+            terraformFiles = {
+              'main.tf': content.main_tf,
+              'variables.tf': content.variables_tf,
+              'outputs.tf': content.outputs_tf,
+              'terraform.tfvars.json': content.terraform_tfvars_json,
+            };
+          }
+        } catch (error) {
+          console.error('Inside Terraform agent process:', error);
+          console.log('Agent', message.content);
         }
       }
     } catch (error) {

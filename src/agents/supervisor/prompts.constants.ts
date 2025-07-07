@@ -33,6 +33,12 @@ export const SUPERVISOR_SYSTEM_PROMPT = `You are a supervisor agent responsible 
                    "Show me database recommendations"
                    "Yes, show me the recommendations"
                    "What are the best options?"
+               3. Terraform Generator Agent (transfer_to_terraform_generator_agent):
+                  - Terraform Code Generation
+                  - Keywords: "Code"
+                  - Examples:
+                     "Generate code for resource group"
+                     "Generate code for three tire architecture"
 
               3. General Agent (transfer_to_general_agent):
                  - Greetings and casual conversation
