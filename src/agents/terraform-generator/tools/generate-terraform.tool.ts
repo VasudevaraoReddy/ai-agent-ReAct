@@ -188,11 +188,14 @@ function getSampleValue(varName: string): any {
 }
 
 async function saveRecord(result: any, config?: RunnableConfig): Promise<void> {
+  const timestamp = new Date().toISOString();
   try {
     const record = {
       userid: config?.configurable?.userid || '',
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp,
       resource_type: result.resource_type,
+      userInput: config?.configurable?.userInput || '',
+      modifiedTimestamp: timestamp,
       csp: result.csp,
       generation_time_ms: result.generation_time_ms,
       terraformFiles: {
