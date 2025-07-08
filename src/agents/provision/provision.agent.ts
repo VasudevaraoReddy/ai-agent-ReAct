@@ -59,10 +59,6 @@ export const ProvisionAgent = async (
       },
     );
 
-    // Extract final response message
-    const responseMessage = response?.messages[response?.messages.length - 1]
-      ?.content as string;
-
     // Collect all tool messages
     const tools_response: ToolMessage[] = [];
     for (const message of response?.messages) {
@@ -72,26 +68,29 @@ export const ProvisionAgent = async (
     }
     // Process service config and deploy tool responses
     const toolResults = processToolResponses(tools_response);
-    
+
+    // Extract final response message
+    const responseMessage = toolResults.responseFromTool;
+
     // Check if we need to redirect to terraform generator
     if (toolResults.useTerraformGenerator) {
       // Store resource information in the extra_info for the terraform generator to use
       state.extra_info.user_input = `Generate Terraform code for ${toolResults.resourceType} on ${csp.toUpperCase()}`;
       state.extra_info.terraform_resource_type = toolResults.resourceType;
       state.extra_info.terraform_specifications = toolResults.specifications;
-      
+
       // Add a human message to context to carry over to terraform generator
       const humanMessage = new HumanMessage(
-        `Generate Terraform code for ${toolResults.resourceType} on ${csp.toUpperCase()}`
+        `Generate Terraform code for ${toolResults.resourceType} on ${csp.toUpperCase()}`,
       );
       state.messages.push(humanMessage);
-      
+
       // Redirect to terraform generator
       return new Command({
         goto: 'terraform_generator_agent',
       });
     }
-    
+
     const isServiceConfigFetched = toolResults.serviceConfigFetched;
     const isDeployToolCalled = toolResults.deployToolCalled;
     const deploySuccess = toolResults.deploySuccess;
@@ -149,21 +148,24 @@ const processToolResponses = (messages: ToolMessage[]) => {
     useTerraformGenerator: false,
     resourceType: '',
     specifications: '',
+    responseFromTool: '',
   };
 
   for (const message of messages) {
     try {
-      console.log(message?.content)
+      console.log(message?.content);
       const content = JSON.parse((message?.content as string) || '{}');
+      results.responseFromTool = content?.response;
 
       // Process service configuration tool response
       if (message.name === 'get_service_config') {
         results.serviceConfigFetched = true;
         results.serviceConfig = content?.serviceConfig ?? null;
         results.found = content?.found ?? false;
-        
+
         // Check if terraform generator should be used
-        results.useTerraformGenerator = content?.use_terraform_generator === true;
+        results.useTerraformGenerator =
+          content?.use_terraform_generator === true;
         if (results.useTerraformGenerator) {
           results.resourceType = content?.resource_type || '';
           results.specifications = content?.specifications || '';

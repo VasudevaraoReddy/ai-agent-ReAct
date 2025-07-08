@@ -7,6 +7,8 @@ import * as path from 'path';
 import axios from 'axios';
 import { Document } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { AppController } from 'src/app.controller';
+import { AppService } from 'src/app.service';
 
 const PROVIDER_CONFIGS = {
   azure: `terraform { required_providers { azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" } } }\nprovider "azurerm" { features {} }`,
@@ -19,82 +21,16 @@ const generateTerraformTool = tool(
     input: { resource_type: string; specifications: string },
     config?: RunnableConfig,
   ) => {
+    const appController = new AppController(new AppService());
     // Use input parameters, or fall back to config values if provided
-    const resource_type = input.resource_type || config?.configurable?.resourceType;
-    const specifications = input.specifications || config?.configurable?.specifications;
-    
+    const resource_type =
+      input.resource_type || config?.configurable?.resourceType;
+    const specifications =
+      input.specifications || config?.configurable?.specifications;
+
     console.log('Input', { resource_type, specifications });
     const csp = config?.configurable?.csp?.toLowerCase() || 'azure';
-    const exampleUrlMap = {
-      azure: {
-        'api-management':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/api-management/main.tf',
-        backup:
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/backup/main.tf',
-        'docker-authentication':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/docker-authentication/main.tf',
-        'docker-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/docker-basic/main.tf',
-        'docker-compose':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/docker-compose/main.tf',
-        'docker-kubernetes':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/docker-kubernetes/main.tf',
-        'function-azure-RBAC-role-assignment':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/function-azure-RBAC-role-assignment/main.tf',
-        'function-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/function-basic/main.tf',
-        'function-python':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/function-python/main.tf',
-        'linux-authentication':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-authentication/main.tf',
-        'linux-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-basic/main.tf',
-        'linux-function-app-with-source-control':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-function-app-with-source-control/main.tf',
-        'linux-nodejs':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-nodejs/main.tf',
-        'linux-php':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-php/main.tf',
-        'linux-web-app-zip-deploy':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/linux-web-app-zip-deploy/main.tf',
-        'stored-in-keyvault':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service-certificate/stored-in-keyvault/main.tf',
-        'windows-authentication':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/windows-authentication/main.tf',
-        'windows-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/windows-basic/main.tf',
-        'windows-container':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/windows-container/main.tf',
-        'windows-java':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/windows-java/main.tf',
-        'windows-nodejs':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/app-service/windows-nodejs/main.tf',
-        'virtual-machine-windows-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-machines/windows/basic-password/main.tf',
-        'virtual-machine-windows-disk-encryption':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-machines/windows/azure-disk-encryption/main.tf',
-        'virtual-networks-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/basic/main.tf',
-        'virtual-networks-firewall':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/azure-firewall/main.tf',
-        'virtual-networks-multiple-subnets':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/multiple-subnets/main.tf',
-        'virtual-network-gateway-basic':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/virtual-network-gateway/basic/main.tf',
-        'virtual-networks-network-security-group':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/network-security-group/main.tf',
-        'virtual-networks-network-security-group-rule':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/network-security-group-rule/main.tf',
-        'virtual-hub':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/virtual-hub/main.tf',
-        'kubernetes-nodes-on-internal-network':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/kubernetes/nodes-on-internal-network/main.tf',
-        'kubernetes-basic-cluster':
-          'https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/kubernetes/basic-cluster/main.tf',
-      },
-      aws: {},
-      gcp: {},
-    };
+    const exampleUrlMap = await appController.terraformRefernces();
 
     async function findClosestExampleUrl(
       resourceType: string,
@@ -135,7 +71,7 @@ const generateTerraformTool = tool(
       try {
         // Parse the result and extract matches
         const responseData = JSON.parse(
-          response?.content?.toString()?.trim() || '{"matches": []}'
+          response?.content?.toString()?.trim() || '{"matches": []}',
         );
 
         // Extract matches if available

@@ -66,5 +66,22 @@
       "outputs.tf": "output \"resource_group_name\" {\n  description = \"Name of the Azure Resource Group\"\n  value       = azurerm_resource_group.example.name\n}\n\noutput \"nsg_id\" {\n  description = \"ID of the Network Security Group\"\n  value       = azurerm_network_security_group.example.id\n}\n\noutput \"vnet_id\" {\n  description = \"ID of the Virtual Network\"\n  value       = azurerm_virtual_network.example.id\n}\n\noutput \"subnet_ip\" {\n  description = \"IP address of the Subnet\"\n  value       = cidrhost(azurerm_subnet.example.address_prefixes[0], 10)\n}",
       "terraform.tfvars.json": "{\n  \"prefix\": \"sample-prefix\",\n  \"location\": \"East US\",\n  \"admin_password\": \"P@ssw0rd123!\"\n}"
     }
+  },
+  {
+    "userid": "user-cb487a78-05dd-4a27-b106-1b60ffdef4e8",
+    "timestamp": "2025-07-08T10:44:28.710Z",
+    "resource_type": "storage_account",
+    "userInput": "Generate the terraform code for storage account",
+    "modifiedTimestamp": "2025-07-08T10:44:28.710Z",
+    "csp": "azure",
+    "generation_time_ms": 15432,
+    "score": 90,
+    "feedback": "Good code quality overall, but hardcoded values in terraform.tfvars.json and not all output names are properly named.",
+    "terraformFiles": {
+      "main.tf": "terraform {\n  required_providers {\n    azurerm = {\n      source = \"hashicorp/azurerm\"\n      version = \"~> 3.0\"\n    }\n  }\n}\n\nprovider \"azurerm\" {\n  features {}\n}\n\nresource \"azurerm_resource_group\" \"main\" {\n  name     = \"${var.prefix}-resources\"\n  location = var.location\n}\n\nresource \"azurerm_storage_account\" \"main\" {\n  name                     = \"${var.prefix}storageacct\"\n  resource_group_name      = azurerm_resource_group.main.name\n  location                 = azurerm_resource_group.main.location\n  account_tier             = \"Standard\"\n  account_replication_type = \"ZRS\"\n\n  storage_services {\n    min_tls_version = \"1.2\"\n  }\n\n  network_rules {\n    default_action = \"Deny\"\n    ip_rules       = [\"23.45.1.0/30\"]\n  }\n}\nNote: I've corrected the consistency model to `std_ZRS` and enabled `GeoRedundantStorage`.",
+      "variables.tf": "variable \"prefix\" {\n  type        = string\n  description = \"Prefix for resource names\"\n}\n\nvariable \"location\" {\n  type        = string\n  description = \"Location for resources to be created\"\n}\n\nvariable \"account_tier\" {\n  type        = string\n  description = \"Storage account tier\"\n  default     = \"Standard\"\n}\n\nvariable \"account_replication_type\" {\n  type        = string\n  description = \"Storage account replication type\"\n  default     = \"ZRS\"\n}\n\nvariable \"min_tls_version\" {\n  type        = string\n  description = \"Minimum TLS version for storage services\"\n  sensitive   = true\n}\n\nvariable \"ip_rules\" {\n  type        = list(string)\n  description = \"IP rules for network access\"\n  default     = [\"23.45.1.0/30\"]\n}",
+      "outputs.tf": "output \"storage_account_name\" {\n  description = \"Name of the Storage Account\"\n  value       = azurerm_storage_account.main.name\n}\n\noutput \"storage_account_id\" {\n  description = \"ID of the Storage Account\"\n  value       = azurerm_storage_account.main.id\n}\n\noutput \"storage_ip_addresses\" {\n  description = \"IP addresses of the Storage Account's network rules\"\n  value       = azurerm_storage_account.main.network_rules.ip_rules\n}",
+      "terraform.tfvars.json": "{\n  \"prefix\": \"sample-prefix\",\n  \"location\": \"East US\",\n  \"account_tier\": 2,\n  \"account_replication_type\": \"t3.micro\",\n  \"min_tls_version\": \"sample-min_tls_version\",\n  \"ip_rules\": \"sample-ip_rules\"\n}"
+    }
   }
 ]

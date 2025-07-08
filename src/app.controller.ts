@@ -67,4 +67,15 @@ export class AppController {
       };
     }
   }
+
+  @Get('/all-terraform-refernces')
+  async terraformRefernces() {
+    const filePath = path.resolve(
+      process.cwd(),
+      'src/utils/terraform_resources.json',
+    );
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const records = JSON.parse(fileContent);
+    return records;
+  }
 }

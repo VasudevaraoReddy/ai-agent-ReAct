@@ -31,7 +31,8 @@
         "virtual-networks-network-security-group-rule": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/network-security-group-rule/main.tf",
         "virtual-hub": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/virtual-networks/virtual-hub/main.tf",
         "kubernetes-nodes-on-internal-network": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/kubernetes/nodes-on-internal-network/main.tf",
-        "kubernetes-basic-cluster": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/kubernetes/basic-cluster/main.tf"
+        "kubernetes-basic-cluster": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/kubernetes/basic-cluster/main.tf",
+        "storage-account": "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/examples/storage/storage-account/main.tf"
     },
     "aws": {},
     "gcp": {}
