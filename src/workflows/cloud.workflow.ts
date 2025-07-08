@@ -24,6 +24,10 @@ type extra_info={
   service_form_data:any,
   service_config_available?:boolean,
   service_config?:any,
+  
+  // terraform generator
+  terraform_resource_type?:string,
+  terraform_specifications?:string,
 }
 export const CloudGraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({

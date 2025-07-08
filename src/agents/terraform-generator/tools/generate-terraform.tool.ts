@@ -19,8 +19,11 @@ const generateTerraformTool = tool(
     input: { resource_type: string; specifications: string },
     config?: RunnableConfig,
   ) => {
-    const { resource_type, specifications } = input;
-    console.log('Input', input);
+    // Use input parameters, or fall back to config values if provided
+    const resource_type = input.resource_type || config?.configurable?.resourceType;
+    const specifications = input.specifications || config?.configurable?.specifications;
+    
+    console.log('Input', { resource_type, specifications });
     const csp = config?.configurable?.csp?.toLowerCase() || 'azure';
     const exampleUrlMap = {
       azure: {
@@ -115,42 +118,48 @@ const generateTerraformTool = tool(
       - If there is only **one** closest match, return that match only.
       - If there are multiple relevant matches, return the **top 3 most distinct matches** in an array (max 3).
       - Ensure the matches are distinct and relevant to the resource type.
-      - Return only the matches, no extra explanations.
+      - Return ONLY the array of matches, with no explanations or additional text.
+      - If no matches are found, return an empty array.
 
-
-      RETURN FORMAT EXAMPLE:
+      RETURN FORMAT:
       {
-       matches: []
+        "matches": ["match1", "match2", "match3"]
       }
 
-      only return above format
+      IMPORTANT: Return ONLY valid JSON with the exact format above. Do not include any explanations or text outside the JSON object.
       `;
 
       const response = await CodeOllamaLLM.invoke(prompt);
       console.log('In finding the closest example:', response);
 
-      // Parse the result and handle as necessary
-      const responseData = JSON.parse(
-        response?.content?.toString()?.trim() || '{}',
-      );
+      try {
+        // Parse the result and extract matches
+        const responseData = JSON.parse(
+          response?.content?.toString()?.trim() || '{"matches": []}'
+        );
 
-      // Extract matches if available
-      const matches = responseData?.matches || [];
+        // Extract matches if available
+        const matches = responseData?.matches || [];
 
-      // Filter out duplicates
-      const uniqueMatches = Array.from(new Set(matches));
+        // Filter out duplicates
+        const uniqueMatches = Array.from(new Set(matches));
 
-      const matchedUrls = uniqueMatches
-        .map((matchKey: any) => map[csp]?.[matchKey])
-        .filter(Boolean);
+        const matchedUrls = uniqueMatches
+          .map((matchKey: any) => map[csp]?.[matchKey])
+          .filter(Boolean);
 
-      // If we have only one match, return it as a single string
-      if (matchedUrls.length === 1) {
-        return matchedUrls[0]; // Single closest match
+        // If we have only one match, return it as a single string
+        if (matchedUrls.length === 1) {
+          return matchedUrls[0]; // Single closest match
+        }
+
+        // Otherwise, return up to 3 matches
+        return matchedUrls.length > 0 ? matchedUrls.slice(0, 3) : null;
+      } catch (error) {
+        console.error('Error parsing LLM response:', error);
+        console.error('Raw response:', response?.content?.toString());
+        return null;
       }
-
-      // Otherwise, return up to 3 matches
-      return matchedUrls.length > 0 ? matchedUrls.slice(0, 3) : null;
     }
 
     async function loadTerraformExampleFile(

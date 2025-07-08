@@ -36,6 +36,9 @@ export const TerraformGeneratorAgent = async (
   try {
     const csp = state.extra_info.csp ?? 'azure';
     const userid = state.extra_info.userId;
+    const userInput = state.extra_info.user_input;
+    const resourceType = state.extra_info.terraform_resource_type;
+    const specifications = state.extra_info.terraform_specifications;
 
     // Format prompt with current state
     const formattedPrompt = TERRAFORM_GENERATOR_PROMPT.replace(
@@ -65,7 +68,9 @@ export const TerraformGeneratorAgent = async (
         configurable: {
           csp: csp,
           userid: userid,
-          userInput: state.extra_info.user_input,
+          userInput: userInput,
+          resourceType: resourceType,
+          specifications: specifications,
         },
         recursionLimit: 15,
       },
@@ -84,9 +89,14 @@ export const TerraformGeneratorAgent = async (
     // Process tool responses to extract terraform files
     const terraformFiles = processToolResponses(tools_response);
 
+    // Check if this is a handoff from provision agent (when service wasn't available)
+    const isHandoffFromProvision = state.extra_info.terraform_resource_type && state.extra_info.terraform_specifications;
+
     // Extract response content
     const responseMessage = terraformFiles
-      ? 'Terraform code has been successfully generated and will be available in 72 hours.'
+      ? isHandoffFromProvision 
+        ? `Since the requested service is not available in our service catalog, I've generated Terraform code for you instead. The service will be ready to deploy in 72 hours.`
+        : 'Terraform code has been successfully generated and will be ready to deploy in 72 hours.'
       : 'Terraform code generation failed. Please try again.';
 
     // Create AI message with appropriate details

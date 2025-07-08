@@ -11,10 +11,11 @@ import { getChatHistoryFromMessages } from 'src/utils/getPromtFromMessages';
 import serviceConfigTool from './tools/service-config.tool';
 import deployTool from './tools/deploy.tool';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { Command } from '@langchain/langgraph';
 
 export const ProvisionAgent = async (
   state: typeof CloudGraphState.State,
-): Promise<Partial<typeof CloudGraphState.State>> => {
+): Promise<Partial<typeof CloudGraphState.State> | Command> => {
   try {
     const formData = state.extra_info.service_form_data;
     const userId = state.extra_info.userId;
@@ -71,6 +72,26 @@ export const ProvisionAgent = async (
     }
     // Process service config and deploy tool responses
     const toolResults = processToolResponses(tools_response);
+    
+    // Check if we need to redirect to terraform generator
+    if (toolResults.useTerraformGenerator) {
+      // Store resource information in the extra_info for the terraform generator to use
+      state.extra_info.user_input = `Generate Terraform code for ${toolResults.resourceType} on ${csp.toUpperCase()}`;
+      state.extra_info.terraform_resource_type = toolResults.resourceType;
+      state.extra_info.terraform_specifications = toolResults.specifications;
+      
+      // Add a human message to context to carry over to terraform generator
+      const humanMessage = new HumanMessage(
+        `Generate Terraform code for ${toolResults.resourceType} on ${csp.toUpperCase()}`
+      );
+      state.messages.push(humanMessage);
+      
+      // Redirect to terraform generator
+      return new Command({
+        goto: 'terraform_generator_agent',
+      });
+    }
+    
     const isServiceConfigFetched = toolResults.serviceConfigFetched;
     const isDeployToolCalled = toolResults.deployToolCalled;
     const deploySuccess = toolResults.deploySuccess;
@@ -125,11 +146,13 @@ const processToolResponses = (messages: ToolMessage[]) => {
     deploySuccess: false,
     devOpsResponse: null,
     serviceDeploymentId: null,
+    useTerraformGenerator: false,
+    resourceType: '',
+    specifications: '',
   };
 
   for (const message of messages) {
     try {
-
       console.log(message?.content)
       const content = JSON.parse((message?.content as string) || '{}');
 
@@ -138,6 +161,13 @@ const processToolResponses = (messages: ToolMessage[]) => {
         results.serviceConfigFetched = true;
         results.serviceConfig = content?.serviceConfig ?? null;
         results.found = content?.found ?? false;
+        
+        // Check if terraform generator should be used
+        results.useTerraformGenerator = content?.use_terraform_generator === true;
+        if (results.useTerraformGenerator) {
+          results.resourceType = content?.resource_type || '';
+          results.specifications = content?.specifications || '';
+        }
       }
 
       // Process deployment tool response
