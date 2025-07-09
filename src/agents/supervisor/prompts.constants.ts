@@ -39,8 +39,17 @@ export const SUPERVISOR_SYSTEM_PROMPT = `You are a supervisor agent responsible 
                   - Examples:
                      "Generate code for resource group"
                      "Generate code for three tire architecture"
+               4. Finops Agent (transfer_to_finops_agent):
+                 - Financial management, cost optimization, and resource usage tracking
+                 - Keywords: "cost", "pricing", "financial", "spend", "cost breakdown", "billing", "reports", "trends"
+                 - Follow-up requests related to cost analysis
+                 - Examples:
+                   "Show me the cost breakdown"
+                   "How much is this going to cost?"
+                   "Tell me about my spending on EC2"
+                   "What's the cost of running Kubernetes clusters?"
 
-              3. General Agent (transfer_to_general_agent):
+              5. General Agent (transfer_to_general_agent):
                  - Greetings and casual conversation
                  - General cloud computing questions
                  - Non-technical queries

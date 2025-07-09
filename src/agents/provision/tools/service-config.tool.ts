@@ -15,7 +15,11 @@ const serviceConfigTool = tool(
         return JSON.stringify({ serviceConfig: null, found: false });
       }
 
-      const allServicesDataResponse = await axios.get(
+      const allDataServicesDataResponse = await axios.get(
+        'http://10.95.108.11:4000/infra-provision-service/allInfraServices',
+      );
+
+      const allInfraServicesDataResponse = await axios.get(
         'http://10.95.108.11:4000/infra-provision-service/allInfraServices',
       );
 
@@ -24,8 +28,11 @@ const serviceConfigTool = tool(
       //   data: [],
       // };
       const allServicesData: any[] =
-        allServicesDataResponse.status === 200
-          ? allServicesDataResponse.data
+        allInfraServicesDataResponse.status === 200
+          ? [
+              ...allDataServicesDataResponse.data,
+              ...allInfraServicesDataResponse.data,
+            ]
           : [];
 
       const filteredServices = allServicesData.filter((svc: any) => {

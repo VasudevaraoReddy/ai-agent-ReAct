@@ -83,5 +83,39 @@
       "outputs.tf": "output \"storage_account_name\" {\n  description = \"Name of the Storage Account\"\n  value       = azurerm_storage_account.main.name\n}\n\noutput \"storage_account_id\" {\n  description = \"ID of the Storage Account\"\n  value       = azurerm_storage_account.main.id\n}\n\noutput \"storage_ip_addresses\" {\n  description = \"IP addresses of the Storage Account's network rules\"\n  value       = azurerm_storage_account.main.network_rules.ip_rules\n}",
       "terraform.tfvars.json": "{\n  \"prefix\": \"sample-prefix\",\n  \"location\": \"East US\",\n  \"account_tier\": 2,\n  \"account_replication_type\": \"t3.micro\",\n  \"min_tls_version\": \"sample-min_tls_version\",\n  \"ip_rules\": \"sample-ip_rules\"\n}"
     }
+  },
+  {
+    "userid": "user-cb487a78-05dd-4a27-b106-1b60ffdef4e8",
+    "timestamp": "2025-07-09T05:44:40.413Z",
+    "resource_type": "security_group",
+    "userInput": "Please generate the code for creating a security group",
+    "modifiedTimestamp": "2025-07-09T05:44:40.413Z",
+    "csp": "azure",
+    "generation_time_ms": 21488,
+    "score": 92,
+    "feedback": "Excellent code quality, but minor missing outputs and hardcoded version.",
+    "terraformFiles": {
+      "main.tf": "terraform {\n  required_providers {\n    azurerm = {\n      source = \"hashicorp/azurerm\"\n      version = \"~> 3.0\"\n    }\n  }\n}\n\nprovider \"azurerm\" {\n  features {}\n}\n\nresource \"azurerm_resource_group\" \"my_rg\" {\n  name     = \"my-rg\"\n  location = \"West US\"\n}\n\nresource \"azurerm_network_security_group\" \"my_sg\" {\n  name                = \"my-sg\"\n  resource_group_name = azurerm_resource_group.my_rg.name\n  location            = azurerm_resource_group.my_rg.location\n\n  security_rule {\n    name                       = \"AllowSSH\"\n    priority                   = 1000\n    direction                  = \"Inbound\"\n    access                     = \"Allow\"\n    protocol                   = \"Tcp\"\n    source_port_range          = \"*\"\n    destination_port_range     = \"22\"\n    source_address_prefix      = \"*\"\n    destination_address_prefix = \"*\"\n  }\n\n  security_rule {\n    name                       = \"AllowHTTP\"\n    priority                   = 1001\n    direction                  = \"Inbound\"\n    access                     = \"Allow\"\n    protocol                   = \"Tcp\"\n    source_port_range          = \"*\"\n    destination_port_range     = \"80\"\n    source_address_prefix      = \"*\"\n    destination_address_prefix = \"*\"\n  }\n}",
+      "variables.tf": "variable \"rg_name\" {\n  type        = string\n  description = \"The name of the resource group\"\n}\n\nvariable \"location\" {\n  type        = string\n  description = \"The Azure region where resources should be created\"\n}\n\nvariable \"sg_name\" {\n  type        = string\n  description = \"The name of the network security group\"\n}\n\nvariable \"ssh_port_range\" {\n  type        = string\n  description = \"Port range for SSH access (e.g., '22')\"\n}\n\nvariable \"http_port_range\" {\n  type        = string\n  description = \"Port range for HTTP access (e.g., '80')\"\n}",
+      "outputs.tf": "output \"resource_group_id\" {\n  description = \"ID of the resource group\"\n  value       = azurerm_resource_group.my_rg.id\n}\n\noutput \"network_security_group_name\" {\n  description = \"Name of the network security group\"\n  value       = azurerm_network_security_group.my_sg.name\n}\n\noutput \"network_security_group_id\" {\n  description = \"ID of the network security group\"\n  value       = azurerm_network_security_group.my_sg.id\n}",
+      "terraform.tfvars.json": "{\n  \"rg_name\": \"example-rg_name\",\n  \"location\": \"East US\",\n  \"sg_name\": \"example-sg_name\",\n  \"ssh_port_range\": \"sample-ssh_port_range\",\n  \"http_port_range\": \"sample-http_port_range\"\n}"
+    }
+  },
+  {
+    "userid": "user-cb487a78-05dd-4a27-b106-1b60ffdef4e8",
+    "timestamp": "2025-07-09T05:50:57.302Z",
+    "resource_type": "resource_group",
+    "userInput": "Generate Terraform code for Resource Group on AZURE",
+    "modifiedTimestamp": "2025-07-09T05:50:57.302Z",
+    "csp": "azure",
+    "generation_time_ms": 8513,
+    "score": 92,
+    "feedback": "Good use of variables and sensitive values, but azurerm_resource_group is not configurable from the variable file.",
+    "terraformFiles": {
+      "main.tf": "terraform {\n  required_providers {\n    azurerm = {\n      source = \"hashicorp/azurerm\"\n      version = \"~> 3.0\"\n    }\n  }\n}\n\nprovider \"azurerm\" {\n  features {}\n}\n\nresource \"azurerm_resource_group\" \"example\" {\n  name     = \"MyRG\"\n  location = \"West US 2\"\n}",
+      "variables.tf": "variable \"name\" {\n  type        = string\n  description = \"The name of the resource group\"\n}\n\nvariable \"location\" {\n  type        = string\n  description = \"The Azure location for the resource group\"\n}\n\nvariable \"password\" {\n  type        = string\n  sensitive   = true\n  description = \"Password for the resource group\"\n}",
+      "outputs.tf": "output \"resource_group_id\" {\n  description = \"The ID of the Resource Group.\"\n  value       = azurerm_resource_group.example.id\n}\n\noutput \"resource_group_name\" {\n  description = \"The name of the Resource Group.\"\n  value       = azurerm_resource_group.example.name\n}",
+      "terraform.tfvars.json": "{\n  \"name\": \"example-name\",\n  \"location\": \"East US\",\n  \"password\": \"P@ssw0rd123!\"\n}"
+    }
   }
 ]
