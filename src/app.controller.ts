@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getAdvisorRecommendations } from './apis/getRecommendations.api';
 
 @Controller()
 export class AppController {
@@ -77,5 +78,9 @@ export class AppController {
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const records = JSON.parse(fileContent);
     return records;
+  }
+  @Get('get-recommendations')
+  async getRecommendations(): Promise<any> {
+    return await getAdvisorRecommendations();
   }
 }

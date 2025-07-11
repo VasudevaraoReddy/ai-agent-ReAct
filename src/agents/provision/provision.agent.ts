@@ -69,8 +69,15 @@ export const ProvisionAgent = async (
     // Process service config and deploy tool responses
     const toolResults = processToolResponses(tools_response);
 
-    // Extract final response message
-    const responseMessage = toolResults.responseFromTool;
+    let responseMessage = '';
+
+    if(toolResults.responseFromTool === "" || toolResults.responseFromTool === null || toolResults.responseFromTool === undefined){
+      responseMessage =
+      response?.structuredResponse?.response ??
+      (response?.messages[response?.messages.length - 1]?.content as string);
+    }else{
+      responseMessage = toolResults.responseFromTool;
+    }
 
     // Check if we need to redirect to terraform generator
     if (toolResults.useTerraformGenerator) {
@@ -153,7 +160,6 @@ const processToolResponses = (messages: ToolMessage[]) => {
 
   for (const message of messages) {
     try {
-      console.log(message?.content);
       const content = JSON.parse((message?.content as string) || '{}');
       results.responseFromTool = content?.response;
 
