@@ -3,6 +3,8 @@ import { AppService } from './app.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getAdvisorRecommendations } from './apis/getRecommendations.api';
+import { prepareRecommendationDocs } from './utils/prepareRecommendationDocs';
+import { embedAndStoreChroma } from './utils/embedAndStoreChroma';
 
 @Controller()
 export class AppController {
@@ -20,7 +22,7 @@ export class AppController {
       userSelectedAgent: string;
     },
   ) {
-    console.log('In Process query')
+    console.log('In Process query');
     return this.appService.runWorkflow({
       user_input: body.user_input,
       conversation_id: body.conversation_id,
@@ -82,5 +84,13 @@ export class AppController {
   @Get('get-recommendations')
   async getRecommendations(): Promise<any> {
     return await getAdvisorRecommendations();
+  }
+
+  @Get('rag-index-recommendations')
+  async indexRecommendationsToChroma() {
+    const docs = await prepareRecommendationDocs();
+    console.log("Fetched recommendations", docs.length)
+    return await embedAndStoreChroma(docs);
+    // return docs
   }
 }

@@ -1,160 +1,152 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getAdvisorRecommendations } from 'src/apis/getRecommendations.api';
-import { RunnableConfig } from '@langchain/core/runnables';
+import { ChromaClient } from 'chromadb';
+import { OllamaEmbeddings } from '@langchain/ollama';
 import OllamaLLM from 'src/utils/ollama.llm';
+import { RunnableConfig } from '@langchain/core/runnables';
 
-interface GroupedRecommendation {
-  impactedService: string;
-  recommendations: any[];
-}
+// Initialize embedding model for semantic search
+const embeddings = new OllamaEmbeddings({
+  model: 'nomic-embed-text:latest',
+  baseUrl: 'http://10.95.108.25:11434',
+});
 
-// Flatten all recommendations into a single array with impactedService
-function flattenRecommendations(list: GroupedRecommendation[]) {
-  const flat: any[] = [];
-  list.forEach(group => {
-    group.recommendations.forEach(rec => {
-      flat.push({
-        ...rec,
-        _impactedService: group.impactedService,
-        _category: rec.properties?.category ?? 'Uncategorized',
-      });
-    });
-  });
-  return flat;
-}
+//Custom embedding function for ChromaDB v3 compatibility
+// class OllamaEmbeddingFunction {
+//   async generate(texts: string[]): Promise<number[][]> {
+//     try {
+//       return await embeddings.embedDocuments(texts);
+//     } catch (error) {
+//       console.error('Error generating embeddings:', error);
+//       throw error;
+//     }
+//   }
+// }
 
-// Group back by impactedService
-function groupByImpactedService(recs: any[]): GroupedRecommendation[] {
-  const grouped: Record<string, any[]> = {};
-  recs.forEach(rec => {
-    const service = rec._impactedService || 'Unknown';
-    if (!grouped[service]) grouped[service] = [];
-    grouped[service].push(rec);
-  });
-
-  return Object.entries(grouped).map(([impactedService, recommendations]) => ({
-    impactedService,
-    recommendations,
-  }));
-}
-
-// Format recommendations for LLM input
-function formatRecommendations(grouped: GroupedRecommendation[], start = 1): { text: string; count: number } {
-  let count = start;
-  let output = '';
-
-  grouped.forEach(group => {
-    output += `\n## Impacted Service: ${group.impactedService}\n`;
-    group.recommendations.forEach(rec => {
-      output += `
-Recommendation ID: ${rec.id || 'N/A'}
-- Name: ${rec.name || 'N/A'}
-- Type: ${rec.type || 'N/A'}
-- Impacted Field: ${rec.properties?.impactedField || 'N/A'}
-- Impacted Value: ${rec.properties?.impactedValue || 'N/A'}
-- Category: ${rec.properties?.category || 'N/A'}
-- Problem: ${rec.properties?.shortDescription?.problem || 'N/A'}
-- Solution: ${rec.properties?.shortDescription?.solution || 'N/A'}
-`;
-      count++;
-    });
-  });
-
-  return { text: output, count };
-}
-
-// Split array into chunks
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
+class OllamaEmbeddingFunction {
+  async generate(texts: string[]): Promise<number[][]> {
+    try {
+      return Promise.all(texts.map((text) => embeddings.embedQuery(text)));
+    } catch (error) {
+      console.error('Error generating embeddings:', error);
+      throw error;
+    }
   }
-  return chunks;
 }
-
-const MAX_RECOMMENDATIONS_PER_CHUNK = 50;
 
 const recommendationsTool = tool(
-  async (
-    input: { message: string; filterLevel?: string; category?: string },
-    config?: RunnableConfig
-  ) => {
-    const { message, filterLevel, category } = input;
-    console.log('In recommendations tool:', { filterLevel, category });
+  async (input: { question: string }, config?: RunnableConfig) => {
+    const { question } = input;
+    console.log('⏳ Loading recommendations from ChromaDB...');
 
     try {
-      const response = await getAdvisorRecommendations();
-      const allGrouped = response.list;
-
-      let allRecs = flattenRecommendations(allGrouped);
-
-      // Filter by impactedService
-      allRecs = allRecs.filter(rec => {
-        const matchesFilterLevel = !filterLevel || rec._impactedService?.toLowerCase().includes(filterLevel.toLowerCase());
-        const matchesCategory = !category || rec.properties?.category?.toLowerCase() === category.toLowerCase();
-        return matchesFilterLevel && matchesCategory;
+      // Updated ChromaClient (no deprecated `path`)
+      const client = new ChromaClient({
+        host: '10.95.108.25',
+        port: 8000,
+        ssl: false,
       });
-      
 
-      if (allRecs.length === 0) {
+      const collection = await client.getCollection({
+        name: 'azure-advisor-recommendations',
+        embeddingFunction: new OllamaEmbeddingFunction(),
+      });
+
+      console.log('✅ Collection loaded successfully');
+      console.log('Question: ', question);
+
+      const queryResults = await collection.query({
+        queryTexts: [question],
+        nResults: 10,
+        include: ['documents', 'metadatas', 'distances'],
+      });
+
+      const docs = queryResults.documents?.[0] || [];
+      const metadatas = queryResults.metadatas?.[0] || [];
+      const distances = queryResults.distances?.[0] || [];
+
+      if (docs.length === 0) {
         return JSON.stringify({
-          response: `No recommendations found for "${filterLevel}"${category ? ` and category "${category}"` : ''}.`,
+          response:
+            'No relevant recommendations found in ChromaDB for your question.',
         });
       }
 
-      const chunks = chunkArray(allRecs, MAX_RECOMMENDATIONS_PER_CHUNK);
-      const summaries: string[] = [];
+      // Format results using metadata
+      const context = docs
+        .map((doc: any, i) => {
+          try {
+            const metadata = metadatas[i] as any;
+            const parsedDoc = JSON.parse(doc);
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const regrouped = groupByImpactedService(chunk);
-        const { text: formatted } = formatRecommendations(regrouped, i * MAX_RECOMMENDATIONS_PER_CHUNK + 1);
-        const isFirstChunk = i === 0;
-        const headerIntro = isFirstChunk
-          ? `
-        You are an Azure cloud expert that helps explain Azure Advisor recommendations in simple, clear terms.
-        
-        Analyze the following recommendations related to **${filterLevel}**, and for each:
-        1. Summarize the issue in plain language
-        2. Explain the impact and urgency
-        3. Suggest implementation steps
-        4. State benefits of applying the recommendation
-        
-        Respond in clear, plain English, grouped by impacted service.
-        
-        Here are the recommendations:
-        `
-          : '';
-        
-        const prompt = `${headerIntro}${formatted}`;
-        
-        const result = await OllamaLLM.invoke(prompt);
-        const content = result?.content?.toString() ?? '';
-        summaries.push(`\n${content}`);
-      }
+            console.log(metadata);
 
-      const finalSummary = summaries.join('\n\n');
+            console.log(parsedDoc?.content, 'Parsed');
+            const distance = distances[i];
+
+            const id = parsedDoc?.id || `rec-${i}`;
+            return `
+            # Recommendation ${id} (Relevance: ${distance !== null ? (1 - distance).toFixed(3) : 'N/A'})
+              - impactedService: ${metadata?.impactedService}
+              - category: ${metadata?.category}
+              - Raw Content: ${parsedDoc?.content}
+            `;
+          } catch (error) {
+            console.error('Error formatting document:', error);
+            return null;
+          }
+        })
+        .filter(Boolean)
+        .join('\n\n');
+
+      const prompt = `
+You are an expert Azure Advisor assistant. Answer the user's question using only the context below.
+
+## Context (Most relevant Azure Advisor recommendations):
+${context}
+
+## Question:
+${question}
+
+## Instructions:
+- Use only the information provided in the context above
+- If the context doesn't contain relevant information, say so
+- Be specific and actionable in your recommendations
+- Mention the recommendation IDs when referencing specific recommendations
+- Include relevance scores when helpful
+
+## Answer:
+`;
+
+      const result = await OllamaLLM.invoke(prompt);
+      const answer = result?.content?.toString() ?? 'No response generated.';
 
       return JSON.stringify({
-        response: finalSummary,
-        recommendations: allRecs,
-        input,
+        response: answer,
+        sourceCount: docs.length,
+        relevanceScores: distances.map((d: any) => (1 - d).toFixed(3)),
       });
-    } catch (error) {
-      console.error('Failed to process recommendations:', error);
-      return JSON.stringify({ response: 'Error retrieving recommendations.' });
+    } catch (error: any) {
+      console.error('❌ Error in recommendationsTool:', error);
+      return JSON.stringify({
+        response:
+          'Error querying ChromaDB or generating response. Please ensure ChromaDB is running and the collection exists.',
+        error: error.message,
+      });
     }
   },
   {
-    name: 'recommendations_api_service',
-    description: 'Get Azure Advisor recommendations filtered by impacted service and/or category.',
+    name: 'recommendations_qa',
+    description:
+      'Ask questions about Azure Advisor recommendations stored in ChromaDB using semantic search.',
     schema: z.object({
-      message: z.string().describe('Exact user query (do not change it)'),
-      filterLevel: z.string().optional().describe('Optional impacted service, e.g., "Microsoft.Sql/servers"'),
-      category: z.string().optional().describe('Optional recommendation category like "Cost", "Security", etc.'),
+      question: z
+        .string()
+        .describe(
+          'The exact question from the user about Azure recommendations.',
+        ),
     }),
-  }
+  },
 );
 
 export default recommendationsTool;

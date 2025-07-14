@@ -20,7 +20,7 @@ const serviceConfigTool = tool(
       );
 
       const allInfraServicesDataResponse = await axios.get(
-        'http://10.95.108.11:4000/infra-provision-service/allInfraServices',
+        'http://10.95.108.11:4000/infra-provision-service/allDataServices',
       );
 
       // const allServicesDataResponse = {
