@@ -14,8 +14,10 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 export const SupervisorAgent = async (
   state: typeof CloudGraphState.State,
 ): Promise<any> => {
+  console.time('SupervisorAgent:total');
   try {
     if (state.extra_info.user_selected_active_agent === '') {
+      console.log('[DEBUG] Selected Agent:', state.extra_info.user_selected_active_agent || 'None');
       const tools = [
         transferToRecommendationsAgent,
         transferToProvisionAgent,
@@ -43,19 +45,24 @@ export const SupervisorAgent = async (
       for (const message of response?.messages) {
         if (message.getType() === 'tool') {
           const toolResponse = message?.lc_kwargs?.name as string;
+          console.timeEnd('SupervisorAgent:total');
           return await handOffToAgent(toolResponse, state);
         }
       }
+      console.timeEnd('SupervisorAgent:total');
       return new Command({
         goto: 'general_agent',
       });
+      
     } else {
+      console.timeEnd('SupervisorAgent:total');
       return new Command({
         goto: state.extra_info.user_selected_active_agent,
       });
     }
   } catch (error) {
     console.log(error, 'error');
+    console.timeEnd('SupervisorAgent:total');
     return {
       ...state,
       messages: [

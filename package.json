@@ -23,6 +23,7 @@
     "@azure/identity": "^4.10.2",
     "@langchain/community": "^0.3.48",
     "@langchain/core": "^0.3.62",
+    "@langchain/google-genai": "^0.2.14",
     "@langchain/langgraph": "^0.3.6",
     "@langchain/ollama": "^0.2.2",
     "@nestjs/common": "^11.0.1",

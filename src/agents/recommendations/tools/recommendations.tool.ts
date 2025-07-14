@@ -48,8 +48,7 @@ function formatRecommendations(grouped: GroupedRecommendation[], start = 1): { t
     output += `\n## Impacted Service: ${group.impactedService}\n`;
     group.recommendations.forEach(rec => {
       output += `
-Recommendation ${count}:
-- ID: ${rec.id || 'N/A'}
+Recommendation ID: ${rec.id || 'N/A'}
 - Name: ${rec.name || 'N/A'}
 - Type: ${rec.type || 'N/A'}
 - Impacted Field: ${rec.properties?.impactedField || 'N/A'}
@@ -65,67 +64,82 @@ Recommendation ${count}:
   return { text: output, count };
 }
 
+// Split array into chunks
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+const MAX_RECOMMENDATIONS_PER_CHUNK = 50;
+
 const recommendationsTool = tool(
   async (
-    input: { message: string; service: string; filterLevel?: string; category?: string },
+    input: { message: string; filterLevel?: string; category?: string },
     config?: RunnableConfig
   ) => {
-    const { message, service, filterLevel, category } = input;
-    console.log('In recommendations tool:', { service, filterLevel, category });
+    const { message, filterLevel, category } = input;
+    console.log('In recommendations tool:', { filterLevel, category });
 
     try {
       const response = await getAdvisorRecommendations();
       const allGrouped = response.list;
 
       let allRecs = flattenRecommendations(allGrouped);
-     
-      // Filter by impactedService (filterLevel)
-      if (filterLevel) {
-        const impactedLower = filterLevel.toLowerCase();
-        allRecs = allRecs.filter(rec =>
-          impactedLower.toLowerCase().includes(rec._impactedService.toLowerCase())
-        );
-      }
 
-      // Optional: filter by category
-      if (category) {
-        const categoryLower = category.toLowerCase();
-        allRecs = allRecs.filter(rec =>
-          rec.properties?.category?.toLowerCase() === categoryLower
-        );
-      }
+      // Filter by impactedService
+      allRecs = allRecs.filter(rec => {
+        const matchesFilterLevel = !filterLevel || rec._impactedService?.toLowerCase().includes(filterLevel.toLowerCase());
+        const matchesCategory = !category || rec.properties?.category?.toLowerCase() === category.toLowerCase();
+        return matchesFilterLevel && matchesCategory;
+      });
+      
 
       if (allRecs.length === 0) {
         return JSON.stringify({
-          response: `No recommendations found for "${service}"${filterLevel ? ` with impacted service "${filterLevel}"` : ''}${category ? ` and category "${category}"` : ''}.`,
+          response: `No recommendations found for "${filterLevel}"${category ? ` and category "${category}"` : ''}.`,
         });
       }
 
-      const regrouped = groupByImpactedService(allRecs);
-      const { text: formatted } = formatRecommendations(regrouped);
+      const chunks = chunkArray(allRecs, MAX_RECOMMENDATIONS_PER_CHUNK);
+      const summaries: string[] = [];
 
-      const prompt = `
-You are an Azure cloud expert that helps explain Azure Advisor recommendations in simple, clear terms.
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const regrouped = groupByImpactedService(chunk);
+        const { text: formatted } = formatRecommendations(regrouped, i * MAX_RECOMMENDATIONS_PER_CHUNK + 1);
+        const isFirstChunk = i === 0;
+        const headerIntro = isFirstChunk
+          ? `
+        You are an Azure cloud expert that helps explain Azure Advisor recommendations in simple, clear terms.
+        
+        Analyze the following recommendations related to **${filterLevel}**, and for each:
+        1. Summarize the issue in plain language
+        2. Explain the impact and urgency
+        3. Suggest implementation steps
+        4. State benefits of applying the recommendation
+        
+        Respond in clear, plain English, grouped by impacted service.
+        
+        Here are the recommendations:
+        `
+          : '';
+        
+        const prompt = `${headerIntro}${formatted}`;
+        
+        const result = await OllamaLLM.invoke(prompt);
+        const content = result?.content?.toString() ?? '';
+        summaries.push(`\n${content}`);
+      }
 
-Analyze the following recommendations related to **${service}**, and for each:
-1. Summarize the issue in plain language
-2. Explain the impact and urgency
-3. Suggest implementation steps
-4. State benefits of applying the recommendation
-
-Here are the recommendations:
-${formatted}
-
-Respond in clear, plain English, grouped by impacted service.
-`;
-
-      const result = await OllamaLLM.invoke(prompt);
-      const content = result?.content?.toString() ?? '';
+      const finalSummary = summaries.join('\n\n');
 
       return JSON.stringify({
-        response: content,
+        response: finalSummary,
         recommendations: allRecs,
-        input: input,
+        input,
       });
     } catch (error) {
       console.error('Failed to process recommendations:', error);
@@ -137,7 +151,6 @@ Respond in clear, plain English, grouped by impacted service.
     description: 'Get Azure Advisor recommendations filtered by impacted service and/or category.',
     schema: z.object({
       message: z.string().describe('Exact user query (do not change it)'),
-      service: z.string().describe('Target Azure service, e.g., "SQL Server", "VM", etc.'),
       filterLevel: z.string().optional().describe('Optional impacted service, e.g., "Microsoft.Sql/servers"'),
       category: z.string().optional().describe('Optional recommendation category like "Cost", "Security", etc.'),
     }),
@@ -145,4 +158,3 @@ Respond in clear, plain English, grouped by impacted service.
 );
 
 export default recommendationsTool;
-

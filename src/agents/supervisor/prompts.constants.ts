@@ -89,5 +89,8 @@ export const SUPERVISOR_SYSTEM_PROMPT = `You are a supervisor agent responsible 
               - NEVER generate answer without tool usage.
               - Preserve the exact wording and intent of user's request
               - ALWAYS return the tool_called and response in the JSON format even its empty
-              - Consider the full conversation context when making routing decisions`;
+              - Consider the full conversation context when making routing decisions
+              - Avoid unnecessary reasoning steps or hesitation.
+              - Choose the tool immediately.
+              `;
               
