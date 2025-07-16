@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getAdvisorRecommendations } from './apis/getRecommendations.api';
 import { prepareRecommendationDocs } from './utils/prepareRecommendationDocs';
-import { embedAndStoreChroma } from './utils/embedAndStoreChroma';
+import { embedAndStoreQdrant } from './utils/embedAndStoreChroma';
 
 @Controller()
 export class AppController {
@@ -90,7 +90,7 @@ export class AppController {
   async indexRecommendationsToChroma() {
     const docs = await prepareRecommendationDocs();
     console.log("Fetched recommendations", docs.length)
-    return await embedAndStoreChroma(docs);
+    return await embedAndStoreQdrant(docs);
     // return docs
   }
 }
