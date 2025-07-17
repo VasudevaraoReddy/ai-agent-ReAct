@@ -7,7 +7,7 @@ import {
   Annotation,
 } from '@langchain/langgraph';
 import { ProvisionAgent } from 'src/agents/provision/provision.agent';
-import { RecommendationAgent } from 'src/agents/recommendations/recommendations.agent';
+import { RecommendationsAgent } from 'src/agents/recommendations/recommendations.agent';
 import { GeneralAgent } from 'src/agents/general/general.agent';
 import { SupervisorAgent } from 'src/agents/supervisor/supervisor.agent';
 import { TerraformGeneratorAgent } from 'src/agents/terraform-generator/terraform-generator.agent';
@@ -65,7 +65,7 @@ export const CloudWorkFlow = new StateGraph(CloudGraphState)
     ],
   })
   .addNode('provision_agent', ProvisionAgent)
-  .addNode('recommendation_agent', RecommendationAgent)
+  .addNode('recommendation_agent', RecommendationsAgent)
   .addNode('general_agent', GeneralAgent)
   .addNode('terraform_generator_agent', TerraformGeneratorAgent)
   .addNode('finops_agent', FinopsAgent)

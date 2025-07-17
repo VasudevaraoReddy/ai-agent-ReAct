@@ -93,6 +93,7 @@ export async function prepareRecommendationDocs(): Promise<
 > {
   const response = await getAdvisorRecommendations();
   const flattened = flattenRecommendations(response.list);
+  console.log('flattened', flattened.length);
   return formatToDocument(flattened);
 }
 
