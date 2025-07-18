@@ -31,6 +31,48 @@ const createFilter = (category?: string, impactedService?: string) => {
   return filter.must.length > 0 ? filter : undefined;
 };
 
+/**
+ * Format recommendation results into structured format
+ */
+const formatRecommendations = (results: any[]): any => {
+  return {
+    recommendations: results.map((result) => {
+      const payload = result.metadata || {};
+      const service = payload.impactedService || 'N/A';
+      const category = payload.category || 'N/A';
+      const problemText =
+        payload.problemDescription ||
+        payload.description ||
+        payload.problem ||
+        'No problem description available';
+      const solutionText =
+        payload.solutionDescription ||
+        payload.solution ||
+        'No solution description available';
+
+      return {
+        id: result.id,
+        type: payload.recommendationType || payload.type || 'General',
+        impact: payload.impact || 'N/A',
+        category: category,
+        impactedValue: payload.impactedValue || 'N/A',
+        impactedService: service,
+        problemExplanation: problemText,
+        solutionExplanation: solutionText,
+        relevanceScore: parseFloat(result.relevance) || result.score,
+        lastUpdated: payload.lastUpdated || new Date().toISOString(),
+        cost: payload.cost
+          ? {
+              savings: payload.cost.savings || 'N/A',
+              implementation: payload.cost.implementation || 'N/A',
+              currency: payload.cost.currency || 'USD',
+            }
+          : null,
+      };
+    }),
+  };
+};
+
 const recommendationsTool = tool(
   async (
     input: {
@@ -78,7 +120,7 @@ const recommendationsTool = tool(
         return JSON.stringify({
           success: false,
           message: `No relevant recommendations found for your question${category ? ' in category ' + category : ''}${filterLevel ? ' for service ' + filterLevel : ''}.`,
-          results: [],
+          recommendations: [],
         });
       }
 
@@ -107,10 +149,14 @@ const recommendationsTool = tool(
           };
         });
       }
+      // Format the results into the structured format
+      const formattedResults = formatRecommendations(results);
+
       return JSON.stringify({
         success: true,
         message: `Found ${results.length} recommendations.`,
-        results,
+        totalCount: results.length,
+        ...formattedResults,
       });
     } catch (error: any) {
       console.error('❌ Error in recommendationsTool:', error);
@@ -118,7 +164,7 @@ const recommendationsTool = tool(
         success: false,
         message: 'Error querying recommendations database.',
         error: error.message,
-        results: [],
+        recommendations: [],
       });
     }
   },
@@ -127,7 +173,7 @@ const recommendationsTool = tool(
     description: `
     Use this tool to retrieve Azure service recommendations. 
 
-    - Always pass the user’s full question as the 'question' parameter.
+    - Always pass the user's full question as the 'question' parameter.
     - Use 'filterLevel' to specify the Azure  resource type (e.g., microsoft.containerservice/managedclusters).
     - Use 'category' to filter by recommendation type (e.g., Performance, Cost, Security).`,
     schema: z.object({
