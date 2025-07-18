@@ -9,10 +9,10 @@ import {
   getConversationHistory,
   saveConversationHistory,
   listAllConversations,
-} from './utils/conversationStorage';
+} from 'src/utils/conversationStorage';
 
 @Injectable()
-export class AppService {
+export class ChatService {
   async runWorkflow(data: {
     user_input: string;
     conversation_id: string;
@@ -44,9 +44,7 @@ export class AppService {
           userConversation?.extra_info?.service_config_available,
         service_config: userConversation?.extra_info?.serviceConfig,
         active_agent: userConversation?.extra_info?.active_agent,
-        user_selected_active_agent:
-          data.userSelectedAgent ??
-          '',
+        user_selected_active_agent: data.userSelectedAgent ?? '',
       },
     };
     const response = await CloudWorkFlow.invoke(workflowPayload);

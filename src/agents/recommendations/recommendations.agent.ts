@@ -5,7 +5,13 @@ import recommendationsTool from './tools/recommendations.tool';
 import { RECOMMENDATIONS_AGENT_PROMPT } from './prompt.constants';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { getChatHistoryFromMessages } from 'src/utils/getPromtFromMessages';
-import { transferToProvisionAgent, transferToTerraformGeneratorAgent, transferToFinopsAgent, transferToGeneralAgent, CheckHandOffToolFromMessages } from 'src/utils/createHandoffTool';
+import {
+  transferToProvisionAgent,
+  transferToTerraformGeneratorAgent,
+  transferToFinopsAgent,
+  transferToGeneralAgent,
+  CheckHandOffToolFromMessages,
+} from 'src/utils/createHandoffTool';
 
 // Helper function to safely extract string content from messages
 const getMessageContent = (message: any): string => {
@@ -27,13 +33,19 @@ export const RecommendationsAgent = async (
 
   try {
     // Setup tools and agent
-    const tools = [recommendationsTool, transferToProvisionAgent, transferToTerraformGeneratorAgent, transferToFinopsAgent, transferToGeneralAgent];
-    
+    const tools = [
+      recommendationsTool,
+      transferToProvisionAgent,
+      transferToTerraformGeneratorAgent,
+      transferToFinopsAgent,
+      transferToGeneralAgent,
+    ];
+
     const messagesPayload = [
       new SystemMessage(RECOMMENDATIONS_AGENT_PROMPT),
       ...state.messages,
     ];
-    
+
     const agent = createReactAgent({
       llm: OllamaLLM,
       tools,
@@ -46,25 +58,29 @@ export const RecommendationsAgent = async (
     });
 
     // check if need to hand off to another agent
-    const command = await CheckHandOffToolFromMessages(response.messages,"recommendation_agent");
+    const command = await CheckHandOffToolFromMessages(
+      response.messages,
+      'recommendation_agent',
+    );
     if (command) {
       return command;
     }
 
     // Get the final AI message from the response
     const aiMessage = response.messages
-      .filter(msg => msg.getType() === 'ai')
+      .filter((msg) => msg.getType() === 'ai')
       .pop();
-      
-    const aiMessageContent = aiMessage ? getMessageContent(aiMessage) : 'No response generated.';
-    
+
+    const aiMessageContent = aiMessage
+      ? getMessageContent(aiMessage)
+      : 'No response generated.';
 
     // Return the final response
     return {
       ...state,
       messages: [
         new AIMessage(aiMessageContent, {
-          agent: 'recommendation_agent'
+          agent: 'recommendation_agent',
         }),
       ],
       extra_info: {

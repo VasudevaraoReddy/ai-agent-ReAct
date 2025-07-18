@@ -1,9 +1,5 @@
 import { BaseMessage } from '@langchain/core/messages';
-import {
-  StateGraph,
-  Annotation,
-  END,
-} from '@langchain/langgraph';
+import { StateGraph, Annotation, END } from '@langchain/langgraph';
 import { ProvisionAgent } from 'src/agents/provision/provision.agent';
 import { RecommendationsAgent } from 'src/agents/recommendations/recommendations.agent';
 import { GeneralAgent } from 'src/agents/general/general.agent';
@@ -32,8 +28,14 @@ type extra_info = {
 export const defaultAgent = async (
   state: typeof CloudGraphState.State,
 ): Promise<string> => {
-  if(state.extra_info.active_agent || state.extra_info.user_selected_active_agent){
-    return state.extra_info.active_agent || state.extra_info.user_selected_active_agent as string;
+  if (
+    state.extra_info.active_agent ||
+    state.extra_info.user_selected_active_agent
+  ) {
+    return (
+      state.extra_info.active_agent ||
+      (state.extra_info.user_selected_active_agent as string)
+    );
   } else {
     return 'general_agent' as string;
   }
@@ -64,56 +66,56 @@ export const CloudGraphState = Annotation.Root({
 });
 
 export const CloudWorkFlow = new StateGraph(CloudGraphState)
-  .addNode('provision_agent', ProvisionAgent,{
+  .addNode('provision_agent', ProvisionAgent, {
     ends: [
       'recommendation_agent',
       'general_agent',
       'terraform_generator_agent',
       'finops_agent',
-      END
+      END,
     ],
   })
-  .addNode('recommendation_agent', RecommendationsAgent,{
+  .addNode('recommendation_agent', RecommendationsAgent, {
     ends: [
       'provision_agent',
       'general_agent',
       'terraform_generator_agent',
       'finops_agent',
-      END
+      END,
     ],
   })
-  .addNode('general_agent', GeneralAgent , {
+  .addNode('general_agent', GeneralAgent, {
     ends: [
       'provision_agent',
       'recommendation_agent',
       'terraform_generator_agent',
       'finops_agent',
-      END
+      END,
     ],
   })
-  .addNode('terraform_generator_agent', TerraformGeneratorAgent,{
+  .addNode('terraform_generator_agent', TerraformGeneratorAgent, {
     ends: [
       'provision_agent',
       'recommendation_agent',
       'general_agent',
       'finops_agent',
-      END
+      END,
     ],
   })
-  .addNode('finops_agent', FinopsAgent,{
+  .addNode('finops_agent', FinopsAgent, {
     ends: [
       'provision_agent',
       'recommendation_agent',
       'general_agent',
       'terraform_generator_agent',
-      END
+      END,
     ],
   })
-  .addConditionalEdges('__start__', defaultAgent,{
-    "general_agent": "general_agent",
-    "provision_agent": "provision_agent",
-    "recommendation_agent": "recommendation_agent",
-    "terraform_generator_agent": "terraform_generator_agent",
-    "finops_agent": "finops_agent",
+  .addConditionalEdges('__start__', defaultAgent, {
+    general_agent: 'general_agent',
+    provision_agent: 'provision_agent',
+    recommendation_agent: 'recommendation_agent',
+    terraform_generator_agent: 'terraform_generator_agent',
+    finops_agent: 'finops_agent',
   })
   .compile();

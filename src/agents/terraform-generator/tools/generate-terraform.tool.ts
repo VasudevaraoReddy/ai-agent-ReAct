@@ -7,8 +7,8 @@ import * as path from 'path';
 import axios from 'axios';
 import { Document } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { AppController } from 'src/app.controller';
-import { AppService } from 'src/app.service';
+import { ChatController } from 'src/domain/chat/chat.controller';
+import { ChatService } from 'src/domain/chat/chat.service';
 
 const PROVIDER_CONFIGS = {
   azure: `terraform { required_providers { azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" } } }\nprovider "azurerm" { features {} }`,
@@ -21,7 +21,7 @@ const generateTerraformTool = tool(
     input: { resource_type: string; specifications: string },
     config?: RunnableConfig,
   ) => {
-    const appController = new AppController(new AppService());
+    const appController = new ChatController(new ChatService());
     // Use input parameters, or fall back to config values if provided
     const resource_type =
       input.resource_type || config?.configurable?.resourceType;

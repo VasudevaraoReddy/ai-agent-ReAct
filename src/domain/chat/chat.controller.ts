@@ -1,14 +1,12 @@
 import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
-import { AppService } from './app.service';
+import { ChatService } from './chat.service';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getAdvisorRecommendations } from './apis/getRecommendations.api';
-import { prepareRecommendationDocs } from './utils/prepareRecommendationDocs';
-import { embedAndStoreQdrant } from './utils/embedAndStoreChroma';
+import { getAdvisorRecommendations } from 'src/apis/getRecommendations.api';
 
 @Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
+export class ChatController {
+  constructor(private readonly chatService: ChatService) {}
 
   @Post('process-query')
   runWorkflow(
@@ -23,7 +21,7 @@ export class AppController {
     },
   ) {
     console.log('In Process query');
-    return this.appService.runWorkflow({
+    return this.chatService.runWorkflow({
       user_input: body.user_input,
       conversation_id: body.conversation_id,
       formData: body.formData,
@@ -38,12 +36,12 @@ export class AppController {
     @Param('userId') userId: string,
     @Param('conversationId') conversationId: string,
   ) {
-    return this.appService.getConversation(userId, conversationId);
+    return this.chatService.getConversation(userId, conversationId);
   }
 
   @Get('conversations')
   listAllConversations() {
-    return this.appService.listAllConversations();
+    return this.chatService.listAllConversations();
   }
 
   @Get('terraform-records')
@@ -84,13 +82,5 @@ export class AppController {
   @Get('get-recommendations')
   async getRecommendations(): Promise<any> {
     return await getAdvisorRecommendations();
-  }
-
-  @Get('rag-index-recommendations')
-  async indexRecommendationsToChroma() {
-    const docs = await prepareRecommendationDocs();
-    console.log("Fetched recommendations", docs.length)
-    return await embedAndStoreQdrant(docs);
-    // return docs
   }
 }
