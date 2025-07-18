@@ -5,6 +5,7 @@ import recommendationsTool from './tools/recommendations.tool';
 import { RECOMMENDATIONS_AGENT_PROMPT } from './prompt.constants';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { getChatHistoryFromMessages } from 'src/utils/getPromtFromMessages';
+import { transferToProvisionAgent, transferToTerraformGeneratorAgent, transferToFinopsAgent, transferToGeneralAgent, CheckHandOffToolFromMessages } from 'src/utils/createHandoffTool';
 
 // Helper function to safely extract string content from messages
 const getMessageContent = (message: any): string => {
@@ -26,7 +27,7 @@ export const RecommendationsAgent = async (
 
   try {
     // Setup tools and agent
-    const tools = [recommendationsTool];
+    const tools = [recommendationsTool, transferToProvisionAgent, transferToTerraformGeneratorAgent, transferToFinopsAgent, transferToGeneralAgent];
     
     const messagesPayload = [
       new SystemMessage(RECOMMENDATIONS_AGENT_PROMPT),
@@ -44,6 +45,12 @@ export const RecommendationsAgent = async (
       messages: getChatHistoryFromMessages(messagesPayload),
     });
 
+    // check if need to hand off to another agent
+    const command = await CheckHandOffToolFromMessages(response.messages,"recommendation_agent");
+    if (command) {
+      return command;
+    }
+
     // Get the final AI message from the response
     const aiMessage = response.messages
       .filter(msg => msg.getType() === 'ai')
@@ -51,6 +58,7 @@ export const RecommendationsAgent = async (
       
     const aiMessageContent = aiMessage ? getMessageContent(aiMessage) : 'No response generated.';
     
+
     // Return the final response
     return {
       ...state,

@@ -12,6 +12,7 @@ import serviceConfigTool from './tools/service-config.tool';
 import deployTool from './tools/deploy.tool';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { Command } from '@langchain/langgraph';
+import { transferToTerraformGeneratorAgent, transferToRecommendationsAgent, transferToFinopsAgent, transferToGeneralAgent, CheckHandOffToolFromMessages } from 'src/utils/createHandoffTool';
 
 export const ProvisionAgent = async (
   state: typeof CloudGraphState.State,
@@ -36,7 +37,7 @@ export const ProvisionAgent = async (
       ...state.messages,
     ];
 
-    const tools = [serviceConfigTool, deployTool];
+    const tools = [serviceConfigTool, deployTool, transferToTerraformGeneratorAgent, transferToRecommendationsAgent, transferToFinopsAgent, transferToGeneralAgent];
     const agent = createReactAgent({
       llm: OllamaLLM,
       tools: tools,
@@ -58,6 +59,12 @@ export const ProvisionAgent = async (
         recursionLimit: 15,
       },
     );
+
+    // Check if need to hand off to another agent
+    const handoffCommand = await CheckHandOffToolFromMessages(response.messages, "provision_agent");
+    if (handoffCommand) {
+      return handoffCommand;
+    }
 
     // Collect all tool messages
     const tools_response: ToolMessage[] = [];

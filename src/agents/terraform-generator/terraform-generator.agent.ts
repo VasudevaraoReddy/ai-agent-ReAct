@@ -10,6 +10,7 @@ import { getChatHistoryFromMessages } from 'src/utils/getPromtFromMessages';
 import generateTerraformTool from './tools/generate-terraform.tool';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { z } from 'zod';
+import { transferToProvisionAgent, transferToRecommendationsAgent, transferToFinopsAgent, transferToGeneralAgent, CheckHandOffToolFromMessages } from 'src/utils/createHandoffTool';
 
 const terraformResponse = z.object({
   response: z.string().optional(),
@@ -51,7 +52,7 @@ export const TerraformGeneratorAgent = async (
       ...state.messages,
     ];
 
-    const tools = [generateTerraformTool];
+    const tools = [generateTerraformTool, transferToProvisionAgent, transferToRecommendationsAgent, transferToFinopsAgent, transferToGeneralAgent];
     const agent = createReactAgent({
       llm: OllamaLLM,
       tools: tools,
@@ -77,6 +78,12 @@ export const TerraformGeneratorAgent = async (
     );
     const agentEnd = Date.now();
     console.log(`⏱️ Agent total time: ${agentEnd - agentStart}ms`);
+
+    // Check if need to hand off to another agent
+    const command = await CheckHandOffToolFromMessages(response.messages, "terraform_generator_agent");
+    if (command) {
+      return command;
+    }
 
     // Collect all tool messages
     const tools_response: ToolMessage[] = [];

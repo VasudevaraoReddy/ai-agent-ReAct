@@ -17,10 +17,17 @@ const serviceConfigTool = tool(
 
       const allDataServicesDataResponse = await axios.get(
         'http://10.95.108.11:4000/infra-provision-service/allInfraServices',
+        {
+          // 5 seconds timeout
+          timeout: 5000,
+        }
       );
 
       const allInfraServicesDataResponse = await axios.get(
         'http://10.95.108.11:4000/infra-provision-service/allDataServices',
+        {
+          timeout: 5000,
+        }
       );
 
       // const allServicesDataResponse = {

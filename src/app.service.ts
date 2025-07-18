@@ -31,7 +31,8 @@ export class AppService {
       formatLangchainMessagesToBaseMessage(userConversationMessages);
     const workflowPayload: typeof CloudGraphState.State = {
       messages: [
-        ...formattedLangchainMessagesToBaseMessages,
+        // take last 6
+        ...formattedLangchainMessagesToBaseMessages.slice(-6),
         new HumanMessage(data?.user_input),
       ],
       extra_info: {
